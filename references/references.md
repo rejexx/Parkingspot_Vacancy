@@ -1,4 +1,5 @@
-# Key references used in this project include the many who have attempted solving this problem before!
+# Key references
+Thanks to the many who have attempted solving this problem before!  Check out the below references to see some great methods for solving the same problem.
 
 Here's a few - 
 
