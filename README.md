@@ -1,7 +1,7 @@
 Parkingspot_Vacancy
 ==============================
 
-Finding available parking spots using a camera and machine learning.
+Finding available parking spots using a camera and machine learning.  This is my final capstone project for Springboard Data Science bootcamp course. 
 
 Project Organization
 ------------
