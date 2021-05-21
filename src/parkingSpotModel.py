@@ -3,7 +3,6 @@ import numpy as np
 import cv2 #open cvs, image processing
 from pathlib import Path
 from matplotlib import pyplot as plt #image plots
-import random  #Remove in final version
 import sys
 import streamlit as st
 from datetime import datetime, timedelta, timezone
@@ -12,12 +11,10 @@ import m3u8
 import streamlink
 import time
 
-######################################
-#MaskRCNN config and setup paths
-######################################
-# Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
-ROOT_DIR = Path('../aktwelve_Mask_RCNN')
 
+######################################
+# MaskRCNN config and setup paths
+######################################
 # Root directory of the project
 PROJECT_ROOT = Path("..\\")
 
@@ -28,21 +25,184 @@ MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
 COCO_MODEL_PATH = os.path.join(MODEL_DIR, "mask_rcnn_coco.h5")
 
 # Directory of images to run detection on/videos to process
-VIDEO_DIR = os.path.join(PROJECT_ROOT, ".\\data\\raw")  
-#Could use it to train when 'all spots are full' then look for movement
+VIDEO_DIR = os.path.join(PROJECT_ROOT, ".\\data\\raw")
+# Could use it to train when 'all spots are full' then look for movement
 
 # Video file or camera to process
-VIDEO_SOURCE = os.path.join(VIDEO_DIR,"parkingTest_bestcompress_Trim.mp4")
+VIDEO_SOURCE = os.path.join(VIDEO_DIR, "AllSpotsFull_299Frames.ts")
 
 # Local path to output processed videos
 VIDEO_SAVE_DIR = os.path.join(PROJECT_ROOT, ".\\data\\processed")
-VIDEO_SAVE_FILE = os.path.join(VIDEO_SAVE_DIR, "FinalFile.avi")                           
-
+VIDEO_SAVE_FILE = os.path.join(VIDEO_SAVE_DIR, "FinalFile.avi")
 
 
 ######################################
-#Functions
+# Functions
 ######################################
+
+def main():    
+    ######################################
+    # Streamlit
+    ######################################
+    st.title("Parking Spot Finder")
+    
+    tempVideo = ""
+    if st.button('Get live clip'):
+        #Temp file to store latest clip in, should delete these later.
+        tempVideo = os.path.join(VIDEO_DIR,f"{datetime.now().strftime('%m_%d_%Y %H-%M')}.ts")  #files are format ts, open cv can view them
+    
+        st.write(f"Live video at {datetime.now()}....")
+    
+        #Get a video clip
+        videoURL = "https://youtu.be/DoUOrTJbIu4" #Jackson hole town square, live stream
+        
+    
+        #Get the video
+        st.write(f"Getting the video from youtube: {videoURL}:")
+        dl_stream(videoURL, tempVideo, 1)
+    
+        # Load the video file we want to display
+        video_capture = cv2.VideoCapture(tempVideo)
+    
+        #streamlit placeholder for image/video
+        image_placeholder= st.empty()
+    
+        # Loop over each frame of video
+        while video_capture.isOpened():
+            success, frame = video_capture.read()
+            if not success:
+                break
+    
+            image_placeholder.image(frame, channels="BGR")
+            time.sleep(0.01)
+    
+        # Clean up everything when finished
+        video_capture.release()
+    
+    if st.button('Show saved clip'):
+        #Temp file to store latest clip in, should delete these later.
+        st.write(f"Video: {(VIDEO_SOURCE)}")
+    
+        # Load the video file we want to display
+        video_capture = cv2.VideoCapture(VIDEO_SOURCE)
+    
+        #streamlit placeholder for image/video
+        image_placeholder= st.empty()
+    
+        # Loop over each frame of video
+        while video_capture.isOpened():
+            success, frame = video_capture.read()
+            if not success:
+                break
+    
+            image_placeholder.image(frame, channels="BGR")
+            time.sleep(0.01)
+    
+        # Clean up everything when finished
+        video_capture.release()
+    
+    
+    #Check for spots on temp file
+    if st.button("Process video clip"):
+        
+        "Loading Mask R-CNN libraries..."
+        # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
+        ROOT_DIR = 'aktwelve_Mask_RCNN'
+        assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
+        #sys.path.append("aktwelve_Mask_RCNN")
+        sys.path.append(ROOT_DIR)
+        # Import mrcnn libraries
+        import mrcnn.config
+        import mrcnn.utils
+        from mrcnn.model import MaskRCNN
+    
+            
+        dl_weights_warning = st.warning("Getting COCO trained weights file")
+        # Download COCO trained weights from Releases if needed
+        if not os.path.exists(COCO_MODEL_PATH):
+            dl_weights_warning.warning("Downloading COCO weights. This may take a while")
+            mrcnn.utils.download_trained_weights(COCO_MODEL_PATH)
+        dl_weights_warning.empty()
+    
+        #Give message while loading weights
+        weight_warning = st.warning("Loading model weights, hold on...")
+    
+        
+        #@st.cache()  #This is mutating, and causes issues.  Would be nice to fix
+        def maskRCNN_model(model_dir, trained_weights_file):     
+            # Configuration that will be used by the Mask-RCNN library
+            class MaskRCNNConfig(mrcnn.config.Config):
+                NAME = "coco_pretrained_model_config"
+                IMAGES_PER_GPU = 1
+                GPU_COUNT = 1
+                NUM_CLASSES = 1 + 80  # COCO dataset has 80 classes + one background class
+                DETECTION_MIN_CONFIDENCE = 0.6
+            
+            # Create a Mask-RCNN model in inference mode
+            model = MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=MaskRCNNConfig())
+        
+            
+            # Load pre-trained model
+            model.load_weights(trained_weights_file, by_name=True)
+            model.keras_model._make_predict_function()
+            
+            return model
+        
+        #Create model with saved weights
+        model = maskRCNN_model(model_dir=MODEL_DIR, trained_weights_file=COCO_MODEL_PATH)
+        
+        weight_warning.empty()  #Make the warning go away, done loading
+        
+        st.write("Mask R-CNN configured!")
+    
+    
+        #load or create bounding boxes
+        boundingBoxFile = os.path.join(PROJECT_ROOT,'data\processed\spot_boxes_6.csv')
+    
+        #Load boxes from file if they exist
+        #Else process the saved file and make boxes from cars that don't move.
+        #if os.path.exists(boundingBoxFile):
+        if False:  #Force re-run
+            parked_car_boxes = np.loadtxt(boundingBoxFile, delimiter=',')
+            st.write("Loaded existing bounding boxes - done!")
+        else:
+            #Learn where boxes are from movie, and save video with annotations
+            #Sources is either VDIEO_SOURCE or try with tempFile
+            computeBoxes_warning= st.warning("No saved bounding boxes - will process to make new ones")
+            # detectSpots(video_file, video_save_file='findParkingSpaces.avi', model, utils, initial_check_frame_cutoff=10):
+            parked_car_boxes = detectSpots(VIDEO_SOURCE, video_save_file=os.path.join(VIDEO_SAVE_DIR, "findSpots3.avi"), model=model, utils=mrcnn.utils, initial_check_frame_cutoff=299)
+            
+            #One of those 'spots' is actually a car on the road, I'm going to remove it manually
+            badSpot = np.where(parked_car_boxes == [303,   0, 355,  37])
+            parked_car_boxes = np.delete(parked_car_boxes, badSpot[0][0], axis=0)
+            
+            #Save edited boxes to file for future use
+            np.savetxt(boundingBoxFile, parked_car_boxes, delimiter=',')
+            computeBoxes_warning.empty()
+            st.write("Saved new bounding boxes to: {boundingBoxFile}")
+            
+        #if we didn't get a new image, load one from file
+        if (not os.path.exists(tempVideo) or tempVideo == ""):
+            tempVideo= os.path.join(VIDEO_DIR,"05_19_2021 14-20.ts")
+    
+        #Process video, outputs a image to streamlit...
+        st.write(f"Looking at file: {tempVideo}")
+        countSpots_warning = st.warning("Counting spots in video")
+        #countSpots(video_source, parked_car_boxes, model, utils, video_save_file="annotatedVideo.avi",
+        #       framesToProcess=True, freeSpaceFrameCutOff=5, showVideo = True, skipNFrames = 1)
+        spaces = countSpots(video_source = tempVideo, 
+                            parked_car_boxes=parked_car_boxes,
+                            model=model, 
+                            utils = mrcnn.utils,
+                            video_save_file=VIDEO_SAVE_FILE, 
+                            framesToProcess=2,
+                            freeSpaceFrameCutOff=1, 
+                            skipNFrames=10)
+        
+        countSpots_warning.empty()  #Clear the warning/loading message
+    
+        st.write(f"Spaces available in the last frame: {spaces}")
+
 # Filter a list of Mask R-CNN detection results to get only the detected cars / trucks
 def get_car_boxes(boxes, class_ids):
     '''Filter a list of Mask R-CNN detection results 
@@ -59,6 +219,7 @@ def get_car_boxes(boxes, class_ids):
 
     return np.array(car_boxes)
 
+
 def writeFramesToFile(frame_array, fileName="video.avi", nthFrames=1, fps=15):
     '''writeFramesToFile(frame_array, fileName="video.avi", nthFrames=1, fps=15)
     Writes array of images to a video file of type .avi
@@ -67,14 +228,14 @@ def writeFramesToFile(frame_array, fileName="video.avi", nthFrames=1, fps=15):
       fileName - path to save file
       nthFrames - how many frames to keep, 1 will keep all frames, 2 will remove every other, etc...
       fps - frames per second'''
-    assert (len(frame_array) > 0)
-    
+    assert (len(frame_array) > 0), "No images to save, frame_array is empty"
+
     #check first frame and find shape
     width = len(frame_array[0][0])
     height = len(frame_array[0])
     size = (width,height)
 
-    #make video writer
+    # make video writer
     out = cv2.VideoWriter(fileName,cv2.VideoWriter_fourcc(*'DIVX'), fps, size) #name, writer, fps, size
 
     for i in range(0, len(frame_array), nthFrames):
@@ -82,7 +243,7 @@ def writeFramesToFile(frame_array, fileName="video.avi", nthFrames=1, fps=15):
     out.release()
     return None
 
-#Ref: https://stackoverflow.com/questions/55631634/recording-youtube-live-stream-to-file-in-python
+# Ref: https://stackoverflow.com/questions/55631634/recording-youtube-live-stream-to-file-in-python
 def get_stream(url):
     """
     Get upload chunk url
@@ -100,7 +261,7 @@ def get_stream(url):
         except:
             if i < tries - 1: # i is zero indexed
                 print(f"Attempt {i+1} of {tries}")
-                time.sleep(0.1) #Wait half a second
+                time.sleep(0.01) #Wait half a second
                 continue
             else:
                 raise
@@ -157,13 +318,15 @@ def dl_stream(url, filename, chunks):
         file.close()
     return None
 
-def countSpots(video_source, parked_car_boxes, video_save_file="annotatedVideo.avi",
+
+def countSpots(video_source, parked_car_boxes, model, utils, video_save_file="annotatedVideo.avi",
                framesToProcess=True, freeSpaceFrameCutOff=5, showVideo = True, skipNFrames = 1):
     '''Counts how many spots are vacant at the end of the video 
     saves a video showing spots being vacant
     returns: count of spots in final frame that are vacant
     inputs: video_source: file path
             parked_car_boxes: bounding boxes of parking spaces
+            model: Mask R-CNN inference model object
             video_save_file: default "annotatedVideo.avi", video with annotations
             framesToProcess: default to all frames.  Enter an int to process only part of the file. Good for saving time
             freeSpaceFrameCutOff: default 2, number of frames a spot must be empty before appearing as such, helps with jitter'''
@@ -182,6 +345,7 @@ def countSpots(video_source, parked_car_boxes, video_save_file="annotatedVideo.a
     
     #Dictionary of parking space index and how many frames it's been 'free'
     carBoxes_OpenFrames = {i: 0 for i in range(len(parked_car_boxes))}
+    image_placeholder_processing= st.empty()
 
     # Loop over each frame of video
     while video_capture.isOpened():
@@ -219,7 +383,7 @@ def countSpots(video_source, parked_car_boxes, video_save_file="annotatedVideo.a
             car_boxes = get_car_boxes(r['rois'], r['class_ids'])
 
             # See how much those cars overlap with the known parking spaces
-            overlaps = mrcnn.utils.compute_overlaps(parked_car_boxes, car_boxes)
+            overlaps = utils.compute_overlaps(parked_car_boxes, car_boxes)
 
             # Assume no spaces are free until we find one that is free
             free_spaces = 0
@@ -273,7 +437,6 @@ def countSpots(video_source, parked_car_boxes, video_save_file="annotatedVideo.a
                 font = cv2.FONT_HERSHEY_DUPLEX
                 cv2.putText(frame, f"{max_IoU_overlap:0.2}", (x1 + 6, y2 - 6), font, 0.3, (255, 255, 255))
 
-
             # If a space has been free for several frames, let's count it as free
             #  loop through all 'free' frames and sum the result
             free_spaces = sum([int(i) > freeSpaceFrameCutOff for i in carBoxes_OpenFrames.values()])
@@ -289,14 +452,11 @@ def countSpots(video_source, parked_car_boxes, video_save_file="annotatedVideo.a
 
             # Show the video in a new window
             if showVideo:
-                cv2.imshow('Video', frame)
+                image_placeholder_processing.image(frame, channels="BGR")
+                time.sleep(0.01)
 
             #Append frame to outputvideo
             frame_array.append(frame)
-
-            # Hit 'q' to quit showing video
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
 
             if (framesToProcess != True and frameNum > framesToProcess):
                 print(f"Stopped processing at frame {frameNum} as requested by framesToProcess parameter")
@@ -307,17 +467,12 @@ def countSpots(video_source, parked_car_boxes, video_save_file="annotatedVideo.a
     if showVideo: 
         cv2.destroyAllWindows()  #Close the video player
     writeFramesToFile(frame_array=frame_array, fileName=video_save_file) #save the file
-    
-    plt.figure(figsize = (64,48))
-    plt.imshow(frame_array[-1][:, :, ::-1], interpolation='nearest')
-    plt.tight_layout() #Convert to RBG
-    plt.title('Identified Spots')
-    plt.show()
-    
-    print("done")
+       
+    st.write("done!")
     return free_spaces
 
-def detectSpots(video_file, video_save_file='findParkingSpaces.avi', initial_check_frame_cutoff=10):
+
+def detectSpots(video_file, model, utils, video_save_file='findParkingSpaces.avi', showVideo=True, initial_check_frame_cutoff=10):
     '''detectSpots(video_file, initial_check_frame_cutoff=10)
     Returns: np 2D array of bounding boxes of all bounding boxes that are still occupied
     after initial_check_frame_cutoff frames.  These can be considered "parking spaces".
@@ -333,12 +488,15 @@ def detectSpots(video_file, video_save_file='findParkingSpaces.avi', initial_che
     #Will contain bounding boxes of parked cars to identify 'parkable spots'
     parked_car_boxes = []
     parked_car_boxes_updated = []
-
+    
+    #Make image appear in streamlit
+    image_placeholder_processing= st.empty()
+    
     # Loop over each frame of video
     while video_capture.isOpened():
         success, frame = video_capture.read()
         if not success:
-            print("Processed entire video, exiting")
+            st.write("Processed {len(frame_array)} frames of video, exiting.")
             return parked_car_boxes
 
         # Convert the image from BGR color (which OpenCV uses) to RGB color
@@ -350,6 +508,9 @@ def detectSpots(video_file, video_save_file='findParkingSpaces.avi', initial_che
         else:
             print(f"Processing frame: #{len(frame_array)}")
             # Run the image through the Mask R-CNN model to get results.
+            model.keras_model._make_predict_function() #Will this solve my bug?
+            #Or try this next https://stackoverflow.com/questions/54652536/keras-tensorflow-backend-error-tensor-input-10-specified-in-either-feed-de
+
             results = model.detect([rgb_image], verbose=0)
 
             # Mask R-CNN assumes we are running detection on multiple images.
@@ -367,8 +528,8 @@ def detectSpots(video_file, video_save_file='findParkingSpaces.avi', initial_che
                 # Save the location of each car as a parking space box and go to the next frame of video.
                 # We check if any of those cars moved in the next 5 frames and assume those that don't are parked
                 parked_car_boxes =  get_car_boxes(r['rois'], r['class_ids'])
-                parked_car_boxes_init= parked_car_boxes
-                print(f'Parking spots 1st frame:', len(parked_car_boxes))
+                parked_car_boxes_init = parked_car_boxes
+                print('Parking spots 1st frame:', len(parked_car_boxes))
 
             #If we are past the xth initial frame, already know where parked cars are, then check if any cars moved:                                        
             else:
@@ -378,7 +539,7 @@ def detectSpots(video_file, video_save_file='findParkingSpaces.avi', initial_che
                 car_boxes = get_car_boxes(r['rois'], r['class_ids'])
 
                 # See how much those cars overlap with the known parking spaces
-                overlaps = mrcnn.utils.compute_overlaps(parked_car_boxes, car_boxes)
+                overlaps = utils.compute_overlaps(parked_car_boxes, car_boxes)
 
                 # Loop through each known parking space box
                 for row, areas in enumerate(zip(parked_car_boxes, overlaps)):
@@ -416,15 +577,12 @@ def detectSpots(video_file, video_save_file='findParkingSpaces.avi', initial_che
         cv2.putText(frame, f"Frame: {len(frame_array)}", (10, 340), font, 0.5, (0, 255, 0), 2, cv2.FILLED)
 
         # Show the frame of video on the screen
-        cv2.imshow('Video', frame)
+        if showVideo:
+            image_placeholder_processing.image(frame, channels="BGR")
+            time.sleep(0.01)
 
         #Append frame to outputvideo
         frame_array.append(frame)
-
-        # Hit 'q' to quit
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            print("Quit by user")
-            break
 
         #stop when cutoff reached
         if len(frame_array) > initial_check_frame_cutoff:
@@ -434,115 +592,12 @@ def detectSpots(video_file, video_save_file='findParkingSpaces.avi', initial_che
 
     # Clean up everything when finished
     video_capture.release()
-    cv2.destroyAllWindows()
     writeFramesToFile(frame_array=frame_array, fileName=video_save_file)
 
     #Show final image in matplotlib for ref
-    st.image(frame[:, :, ::-1])
     return parked_car_boxes
 
 
-
-######################################
-#Streamlit
-######################################
-st.title("Parking Spot Finder")
-
-if st.button('Get live clip'):
-    #Temp file to store latest clip in, should delete these later.
-    tempVideo = os.path.join(VIDEO_DIR,f"{datetime.now().strftime('%m_%d_%Y %H-%M')}.ts")  #files are format ts, open cv can view them
-
-    st.write(f"Live video at {datetime.now()}....")
-
-    #Get a video clip
-    videoURL = "https://youtu.be/DoUOrTJbIu4" #Jackson hole town square, live stream
-    
-
-    #Get the video
-    st.write(f"Getting the video from youtube: {videoURL}:")
-    dl_stream(videoURL, tempVideo, 1)
-
-    # Load the video file we want to display
-    video_capture = cv2.VideoCapture(tempVideo)
-
-    #streamlit placeholder for image/video
-    image_placeholder= st.empty()
-
-    # Loop over each frame of video
-    while video_capture.isOpened():
-        success, frame = video_capture.read()
-        if not success:
-            break
-
-        image_placeholder.image(frame, channels="BGR")
-        time.sleep(0.01)
-
-    # Clean up everything when finished
-    video_capture.release()
-
-#button push to make the streamlit load faster.
-if st.button('Configure Mask RCNN'):
-    "Loading Mask R-CNN libraries"
-    # Import mrcnn libraries
-    sys.path.append(ROOT_DIR)
-    assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
-    import mrcnn.config
-    import mrcnn.utils
-    from mrcnn.model import MaskRCNN
-
-    "Configuiring Mask R-CNN"
-    # Configuration that will be used by the Mask-RCNN library
-    class MaskRCNNConfig(mrcnn.config.Config):
-        NAME = "coco_pretrained_model_config"
-        IMAGES_PER_GPU = 1
-        GPU_COUNT = 1
-        NUM_CLASSES = 1 + 80  # COCO dataset has 80 classes + one background class
-        DETECTION_MIN_CONFIDENCE = 0.6
-
-    "Getting COCO trained weights file"
-    # Download COCO trained weights from Releases if needed
-    if not os.path.exists(COCO_MODEL_PATH):
-        mrcnn.utils.download_trained_weights(COCO_MODEL_PATH)
-
-    "Making a Mask R-CNN model in inference mode"
-    # Create a Mask-RCNN model in inference mode
-    model = MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=MaskRCNNConfig())
-
-    "Loading model weights"
-    # Load pre-trained model
-    model.load_weights(COCO_MODEL_PATH, by_name=True)
-    "Done!"
-
-#load or create bounding boxes
-if st.button("Get bounding boxes (from file or video"):
-    boundingBoxFile = os.path.join(ROOT_DIR,'data\processed\spot_boxes_3.csv')
-
-    #Load boxes from file if they exist
-    #Else process the saved file and make boxes from cars that don't move.
-    if os.path.exists(boundingBoxFile):
-    #if False:  #Force re-run
-        parked_car_boxes = np.loadtxt(boundingBoxFile, delimiter=',')
-        st.write("Loaded existing bounding boxes")
-    else:
-        #Learn where boxes are from movie, and save video with annotations
-        #Sources is either VDIEO_SOURCE or try with tempFile
-        "No saved bounding boxes - will process to make new ones"
-        parked_car_boxes = detectSpots(VIDEO_SOURCE, os.path.join(VIDEO_SAVE_DIR, "findSpots2.avi"), 299)
-        
-        #One of those 'spots' is actually a car on the road, I'm going to remove it manually
-        badSpot = np.where(parked_car_boxes == [303,   0, 355,  37])
-        parked_car_boxes = np.delete(parked_car_boxes, badSpot[0][0], axis=0)
-
-        #Save edited boxes to file for future use
-        np.savetxt(boundingBoxFile, parked_car_boxes, delimiter=',')
-        st.write("Saved new bounding boxes to: {boundingBoxFile}")
-
-
-#Check for spots on temp file
-if st.button("Process video clip"):
-    #Process video, outputs a image too matplot lib...
-    spaces = countSpots(video_source = tempVideo, parked_car_boxes=parked_car_boxes, video_save_file=VIDEO_SAVE_FILE,
-          freeSpaceFrameCutOff=5, skipNFrames=10)
-
-    st.write(f"Spaces available in the last frame: {spaces}")
+if __name__ == "__main__":
+    main()
 
