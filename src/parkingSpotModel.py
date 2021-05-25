@@ -1,5 +1,6 @@
 import os
 import numpy as np 
+import pandas as pd
 import cv2 #open cvs, image processing
 from pathlib import Path
 from matplotlib import pyplot as plt #image plots
@@ -10,6 +11,7 @@ import urllib
 import m3u8
 import streamlink
 import time
+import random
 
 
 ######################################
@@ -39,6 +41,45 @@ VIDEO_SAVE_FILE = os.path.join(VIDEO_SAVE_DIR, "FinalFile.avi")
 ######################################
 # Functions
 ######################################
+
+def display_video(image_placeholder, video_file):
+    """Shows a video in given streamlit placeholder image
+    image_placeholder - an st.empty streamlit object
+    video_file - string path to video, entire video will be shown"""
+    
+    # Load the video file we want to display
+    video_capture = cv2.VideoCapture(video_file)
+    
+    # Loop over each frame of video
+    while video_capture.isOpened():
+        success, frame = video_capture.read()
+        if not success:
+            break
+
+        image_placeholder.image(frame, channels="BGR")
+        time.sleep(0.01)
+
+    # Clean up everything when finished
+    video_capture.release()
+
+
+def display_single_frame(video_file, image_placeholder, frame_index=0):
+        """Displays a single frame in streamlit
+            Inputs:
+            video_file - path to file name or other openCV video
+            image_placeholder - streamlit st.empty() or image object
+            frame_index - frame number to show, 0 indexed. Do not exceed max frames
+            """
+        video_capture = cv2.VideoCapture(video_file)
+
+        video_capture.set(1, frame_index)
+        success, frame = video_capture.read()
+        
+        image_placeholder.image(frame, channels="BGR")
+
+
+        video_capture.release()
+
 
 def main():    
     ######################################
@@ -80,32 +121,24 @@ def main():
         video_capture.release()
     
     if st.button('Show saved clip'):
-        #Temp file to store latest clip in, should delete these later.
+    #Temp file to store latest clip in, should delete these later.
         st.write(f"Video: {(VIDEO_SOURCE)}")
-    
-        # Load the video file we want to display
-        video_capture = cv2.VideoCapture(VIDEO_SOURCE)
-    
+        
+        totalFrames = frame_count(VIDEO_SOURCE, manual=True) - 1
+        
+        frame_index = st.slider(label="Show frame:", min_value=0, max_value=totalFrames, value=0,
+                  step=1, key="savedClipFrame", help="Choose frame to view")
+                  
         #streamlit placeholder for image/video
         image_placeholder= st.empty()
-    
-        # Loop over each frame of video
-        while video_capture.isOpened():
-            success, frame = video_capture.read()
-            if not success:
-                break
-    
-            image_placeholder.image(frame, channels="BGR")
-            time.sleep(0.01)
-    
-        # Clean up everything when finished
-        video_capture.release()
+
+        # Load the video file we want to display
+        display_single_frame(VIDEO_SOURCE, image_placeholder, frame_index)
     
     
     #Check for spots on temp file
     if st.button("Process video clip"):
         
-        "Loading Mask R-CNN libraries..."
         # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
         ROOT_DIR = 'aktwelve_Mask_RCNN'
         assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
@@ -153,24 +186,22 @@ def main():
         
         weight_warning.empty()  #Make the warning go away, done loading
         
-        st.write("Mask R-CNN configured!")
-    
-    
         #load or create bounding boxes
         boundingBoxFile = os.path.join(PROJECT_ROOT,'data\processed\spot_boxes_6.csv')
     
         #Load boxes from file if they exist
         #Else process the saved file and make boxes from cars that don't move.
-        #if os.path.exists(boundingBoxFile):
-        if False:  #Force re-run
-            parked_car_boxes = np.loadtxt(boundingBoxFile, delimiter=',')
-            st.write("Loaded existing bounding boxes - done!")
+        if os.path.exists(boundingBoxFile):
+        #if False:  #Force re-run
+            parked_car_boxes = np.loadtxt(boundingBoxFile, dtype='int', delimiter=',')
+            st.write(f"Loaded {len(parked_car_boxes)} existing bounding boxes from file")
         else:
             #Learn where boxes are from movie, and save video with annotations
             #Sources is either VDIEO_SOURCE or try with tempFile
             computeBoxes_warning= st.warning("No saved bounding boxes - will process to make new ones")
             # detectSpots(video_file, video_save_file='findParkingSpaces.avi', model, utils, initial_check_frame_cutoff=10):
-            parked_car_boxes = detectSpots(VIDEO_SOURCE, video_save_file=os.path.join(VIDEO_SAVE_DIR, "findSpots3.avi"), model=model, utils=mrcnn.utils, initial_check_frame_cutoff=299)
+            parked_car_boxes = detectSpots(VIDEO_SOURCE, video_save_file=os.path.join(VIDEO_SAVE_DIR, 
+                "findSpots3.avi"), model=model, utils=mrcnn.utils, initial_check_frame_cutoff=299)
             
             #One of those 'spots' is actually a car on the road, I'm going to remove it manually
             badSpot = np.where(parked_car_boxes == [303,   0, 355,  37])
@@ -179,29 +210,34 @@ def main():
             #Save edited boxes to file for future use
             np.savetxt(boundingBoxFile, parked_car_boxes, delimiter=',')
             computeBoxes_warning.empty()
-            st.write("Saved new bounding boxes to: {boundingBoxFile}")
+            st.write(f"Saved new bounding boxes to: {boundingBoxFile}")
             
         #if we didn't get a new image, load one from file
         if (not os.path.exists(tempVideo) or tempVideo == ""):
             tempVideo= os.path.join(VIDEO_DIR,"05_19_2021 14-20.ts")
     
-        #Process video, outputs a image to streamlit...
+        # Process video, outputs a image to streamlit
+        # This is where the real work actually happens
         st.write(f"Looking at file: {tempVideo}")
         countSpots_warning = st.warning("Counting spots in video")
-        #countSpots(video_source, parked_car_boxes, model, utils, video_save_file="annotatedVideo.avi",
+        # countSpots(video_source, parked_car_boxes, model, utils, video_save_file="annotatedVideo.avi",
         #       framesToProcess=True, freeSpaceFrameCutOff=5, showVideo = True, skipNFrames = 1)
-        spaces = countSpots(video_source = tempVideo, 
+        vacancyPerFrame = countSpots(video_source = tempVideo, 
                             parked_car_boxes=parked_car_boxes,
                             model=model, 
                             utils = mrcnn.utils,
                             video_save_file=VIDEO_SAVE_FILE, 
-                            framesToProcess=2,
-                            freeSpaceFrameCutOff=1, 
+                            freeSpaceFrameCutOff=0, 
                             skipNFrames=10)
         
         countSpots_warning.empty()  #Clear the warning/loading message
     
-        st.write(f"Spaces available in the last frame: {spaces}")
+        vacancyPerFrame_df = pd.DataFrame(vacancyPerFrame, index=["Available spots"]).T
+        vacancyPerFrame_df.index.name = "Frame number"
+        st.bar_chart(data=pd.DataFrame(vacancyPerFrame_df))
+        
+        st.write(f"Spaces available by frame: {vacancyPerFrame}")
+        
 
 # Filter a list of Mask R-CNN detection results to get only the detected cars / trucks
 def get_car_boxes(boxes, class_ids):
@@ -242,6 +278,7 @@ def writeFramesToFile(frame_array, fileName="video.avi", nthFrames=1, fps=15):
         out.write(frame_array[i])
     out.release()
     return None
+
 
 # Ref: https://stackoverflow.com/questions/55631634/recording-youtube-live-stream-to-file-in-python
 def get_stream(url):
@@ -319,6 +356,36 @@ def dl_stream(url, filename, chunks):
     return None
 
 
+def frame_count(video_path, manual=False):
+    """frame_count - get how many frames are in a video
+    video_path - path to video
+    manual - True or False, manual method is much more accurate but slow"""
+    #Credit: https://stackoverflow.com/questions/25359288/
+    #        how-to-know-total-number-of-frame-in-a-file-with-cv2-in-python
+    # answer from: nanthancy 
+    def manual_count(handler):
+        frames = 0
+        while True:
+            status, frame = handler.read()
+            if not status:
+                break
+            frames += 1
+        return frames 
+
+    cap = cv2.VideoCapture(video_path)
+    # Slow, inefficient but 100% accurate method 
+    if manual:
+        frames = manual_count(cap)
+    # Fast, efficient but inaccurate method
+    else:
+        try:
+            frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        except:
+            frames = manual_count(cap)
+    cap.release()
+    return frames
+
+
 def countSpots(video_source, parked_car_boxes, model, utils, video_save_file="annotatedVideo.avi",
                framesToProcess=True, freeSpaceFrameCutOff=5, showVideo = True, skipNFrames = 1):
     '''Counts how many spots are vacant at the end of the video 
@@ -331,8 +398,8 @@ def countSpots(video_source, parked_car_boxes, model, utils, video_save_file="an
             framesToProcess: default to all frames.  Enter an int to process only part of the file. Good for saving time
             freeSpaceFrameCutOff: default 2, number of frames a spot must be empty before appearing as such, helps with jitter'''
     
-    assert (skipNFrames > 0), "skipNFrames must be greater than 0. Default is 1"
-    assert (freeSpaceFrameCutOff > 0), "freeSpaceFrameCutOff must be greater than 0. Default is 5"
+    assert (skipNFrames > 0), "skipNFrames must be greater than 0. Default is 1 (no skipping)"
+    assert (freeSpaceFrameCutOff >= 0), "freeSpaceFrameCutOff can't be negative. Default is 5"
     
     # Load the video file we want to run detection on
     video_capture = cv2.VideoCapture(video_source)
@@ -342,6 +409,9 @@ def countSpots(video_source, parked_car_boxes, model, utils, video_save_file="an
     
     #Speed processing by skipping n frames, so we need to keep track
     frameNum = 0
+    
+    #How many free spots per frame, #frame_Num:vacant spots
+    vacancyPerFrame = {} 
     
     #Dictionary of parking space index and how many frames it's been 'free'
     carBoxes_OpenFrames = {i: 0 for i in range(len(parked_car_boxes))}
@@ -404,14 +474,14 @@ def countSpots(video_source, parked_car_boxes, model, utils, video_save_file="an
                     #If the spot has appeared open long enough, count it as free!
                     # This is so we don't alert based on one frame of a spot being open/closed.
                     # This helps prevent the script triggered on one bad detection.
-                    if carBoxes_OpenFrames[row] > freeSpaceFrameCutOff:
+                    if carBoxes_OpenFrames[row]+1 >= freeSpaceFrameCutOff:
                         # Parking space not occupied! Draw a green box around it
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 3)
 
                         #Count this as occupied, and don't let it be immediately changed
-                        carBoxes_OpenFrames[row] = freeSpaceFrameCutOff * 2
+                        carBoxes_OpenFrames[row] = max(freeSpaceFrameCutOff,1)
                     else:
-                        # Parking space is still occupied - draw a red box around it
+                        # Parking space hasn't been vacant long enough - draw a red box around it
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 1)
 
                         # Tag this spot as being open for +1 frame
@@ -440,6 +510,10 @@ def countSpots(video_source, parked_car_boxes, model, utils, video_save_file="an
             # If a space has been free for several frames, let's count it as free
             #  loop through all 'free' frames and sum the result
             free_spaces = sum([int(i) > freeSpaceFrameCutOff for i in carBoxes_OpenFrames.values()])
+            
+            #Save num free spaces in frame to dict for final output
+            vacancyPerFrame[frameNum] = free_spaces
+
 
             # Write how many free spots there are at the top of the screen
             font = cv2.FONT_HERSHEY_DUPLEX
@@ -457,7 +531,7 @@ def countSpots(video_source, parked_car_boxes, model, utils, video_save_file="an
 
             #Append frame to outputvideo
             frame_array.append(frame)
-
+            
             if (framesToProcess != True and frameNum > framesToProcess):
                 print(f"Stopped processing at frame {frameNum} as requested by framesToProcess parameter")
                 break
@@ -469,7 +543,7 @@ def countSpots(video_source, parked_car_boxes, model, utils, video_save_file="an
     writeFramesToFile(frame_array=frame_array, fileName=video_save_file) #save the file
        
     st.write("done!")
-    return free_spaces
+    return vacancyPerFrame
 
 
 def detectSpots(video_file, model, utils, video_save_file='findParkingSpaces.avi', showVideo=True, initial_check_frame_cutoff=10):
@@ -508,7 +582,7 @@ def detectSpots(video_file, model, utils, video_save_file='findParkingSpaces.avi
         else:
             print(f"Processing frame: #{len(frame_array)}")
             # Run the image through the Mask R-CNN model to get results.
-            model.keras_model._make_predict_function() #Will this solve my bug?
+            #model.keras_model._make_predict_function() #Will this solve my bug?
             #Or try this next https://stackoverflow.com/questions/54652536/keras-tensorflow-backend-error-tensor-input-10-specified-in-either-feed-de
 
             results = model.detect([rgb_image], verbose=0)
