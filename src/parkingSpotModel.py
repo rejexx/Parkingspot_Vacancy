@@ -1,17 +1,24 @@
-import os
+# IMPORTS
+# general
 import numpy as np 
-import pandas as pd
-import cv2 #open cvs, image processing
-from pathlib import Path
-from matplotlib import pyplot as plt #image plots
-import sys
 import streamlit as st
-from datetime import datetime, timedelta, timezone
+import pandas as pd
+
+# Video getting and saving
+import cv2 #open cvs, image processing
 import urllib
 import m3u8
 import streamlink
 import time
-import random
+import pafy #needs youtube_dl
+
+#File handling
+from pathlib import Path
+from datetime import datetime, timedelta, timezone
+import os
+import sys
+
+# Mask R-CNN, setup is more complex than an import, see below
 
 
 ######################################
@@ -42,44 +49,6 @@ VIDEO_SAVE_FILE = os.path.join(VIDEO_SAVE_DIR, "FinalFile.avi")
 # Functions
 ######################################
 
-def display_video(image_placeholder, video_file):
-    """Shows a video in given streamlit placeholder image
-    image_placeholder - an st.empty streamlit object
-    video_file - string path to video, entire video will be shown"""
-    
-    # Load the video file we want to display
-    video_capture = cv2.VideoCapture(video_file)
-    
-    # Loop over each frame of video
-    while video_capture.isOpened():
-        success, frame = video_capture.read()
-        if not success:
-            break
-
-        image_placeholder.image(frame, channels="BGR")
-        time.sleep(0.01)
-
-    # Clean up everything when finished
-    video_capture.release()
-
-
-def display_single_frame(video_file, image_placeholder, frame_index=0):
-        """Displays a single frame in streamlit
-            Inputs:
-            video_file - path to file name or other openCV video
-            image_placeholder - streamlit st.empty() or image object
-            frame_index - frame number to show, 0 indexed. Do not exceed max frames
-            """
-        video_capture = cv2.VideoCapture(video_file)
-
-        video_capture.set(1, frame_index)
-        success, frame = video_capture.read()
-        
-        image_placeholder.image(frame, channels="BGR")
-
-
-        video_capture.release()
-
 
 def main():    
     ######################################
@@ -87,26 +56,31 @@ def main():
     ######################################
     st.title("Parking Spot Finder")
     
-    tempVideo = ""
-    if st.button('Get live clip'):
+    #tempVideo = ""
+    #files are format ts, open cv can view them
+    #tempVideo = os.path.join(VIDEO_DIR,f"{datetime.now().strftime('%m_%d_%Y %H-%M')}.ts")  
+    tempVideo = os.path.join(VIDEO_DIR,"tempNew.ts")  #files are format ts, open cv can view them
+
+    st.write("temp video is", tempVideo)
+    
+    #streamlit placeholder for image/video
+    image_placeholder= st.empty()
+    
+ 
+    if st.sidebar.button('Get live clip'):
         #Temp file to store latest clip in, should delete these later.
-        tempVideo = os.path.join(VIDEO_DIR,f"{datetime.now().strftime('%m_%d_%Y %H-%M')}.ts")  #files are format ts, open cv can view them
     
         st.write(f"Live video at {datetime.now()}....")
     
         #Get a video clip
         videoURL = "https://youtu.be/DoUOrTJbIu4" #Jackson hole town square, live stream
         
-    
-        #Get the video
-        st.write(f"Getting the video from youtube: {videoURL}:")
-        dl_stream(videoURL, tempVideo, 1)
-    
+        get_video_frames(videoURL, tempVideo)
+        
         # Load the video file we want to display
         video_capture = cv2.VideoCapture(tempVideo)
     
-        #streamlit placeholder for image/video
-        image_placeholder= st.empty()
+        
     
         # Loop over each frame of video
         while video_capture.isOpened():
@@ -120,7 +94,7 @@ def main():
         # Clean up everything when finished
         video_capture.release()
     
-    if st.button('Show saved clip'):
+    if st.sidebar.button('Show saved clip'):
     #Temp file to store latest clip in, should delete these later.
         st.write(f"Video: {(VIDEO_SOURCE)}")
         
@@ -137,7 +111,7 @@ def main():
     
     
     #Check for spots on temp file
-    if st.button("Process video clip"):
+    if st.sidebar.button("Process video clip"):
         
         # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
         ROOT_DIR = 'aktwelve_Mask_RCNN'
@@ -239,6 +213,59 @@ def main():
         st.write(f"Spaces available by frame: {vacancyPerFrame}")
         
 
+def display_video(image_placeholder, video_file):
+    """Shows a video in given streamlit placeholder image
+    image_placeholder - an st.empty streamlit object
+    video_file - string path to video, entire video will be shown"""
+    
+    # Load the video file we want to display
+    video_capture = cv2.VideoCapture(video_file)
+    
+    # Loop over each frame of video
+    while video_capture.isOpened():
+        success, frame = video_capture.read()
+        if not success:
+            break
+
+        image_placeholder.image(frame, channels="BGR")
+        time.sleep(0.01)
+
+    # Clean up everything when finished
+    video_capture.release()
+
+
+def display_single_frame(video_file, image_placeholder, frame_index=0):
+        """Displays a single frame in streamlit
+            Inputs:
+            video_file - path to file name or other openCV video
+            image_placeholder - streamlit st.empty() or image object
+            frame_index - frame number to show, 0 indexed. Do not exceed max frames
+            """
+        video_capture = cv2.VideoCapture(video_file)
+
+        video_capture.set(1, frame_index)
+        success, frame = video_capture.read()
+        
+        image_placeholder.image(frame, channels="BGR")
+
+
+        video_capture.release()
+
+def get_video_frames(videoURL, saveFile):
+            """Saves video to file from given URL
+            """
+            #Get a specific URL that points to the 360p version, which is more stable
+            video = pafy.new(videoURL)
+
+            #best = video.getbest(preftype="mp4")  #Get best resolution stream available
+            medVid = video.streams[2]  # get the 360p video, 3 from the bottom
+
+            #Get the video
+            with st.spinner(f"Getting the video from youtube: {video.title}:"):
+                dl_stream(medVid.url, saveFile, 1)
+
+
+
 # Filter a list of Mask R-CNN detection results to get only the detected cars / trucks
 def get_car_boxes(boxes, class_ids):
     '''Filter a list of Mask R-CNN detection results 
@@ -305,7 +332,7 @@ def get_stream(url):
         break
         
     #print(f"Stream choices: {streams.keys()})
-    stream_url = streams["360p"] #Alternate, use "best"
+    stream_url = streams["best"] #I'm only sending one stream via pafy url
 
     m3u8_obj = m3u8.load(stream_url.args['url'])
     return m3u8_obj.segments[0] #Parsed stream
