@@ -3,6 +3,15 @@ Parkingspot_Vacancy
 
 Finding available parking spots using a camera and machine learning.  This is my final capstone project for Springboard Data Science bootcamp course. 
 
+I'm finishing up this project mid June and will add some nicer documentation by that point!  Here's some highlights:
+
+* Use Mask R-CNN to detect cars occupying spots
+* Deploy the app to streamlit 
+* Pull a clip from a youtube live stream to check for spots, any time, unique data
+* Can be easily generalized to another parking lot camera given:
+    * picture/video of parking lot when it's 100% full (to identify spots)
+    * Youtube URL to get a new clip from
+
 Project Organization
 ------------
 
@@ -12,8 +21,8 @@ Project Organization
     ├── data
     │   ├── external       <- Data from third party sources.
     │   ├── interim        <- Intermediate data that has been transformed.
-    │   ├── processed      <- The final, canonical data sets for modeling.
-    │   └── raw            <- The original, immutable data dump.
+    │   ├── processed      <- The final, processed video files and bouding boxes
+    │   └── raw            <- The original video files
     │
     ├── docs               <- A default Sphinx project; see sphinx-doc.org for details
     │
