@@ -9,13 +9,11 @@ import altair as alt
 import cv2  # open cvs, image processing
 import urllib
 import m3u8
-import streamlink
 import time
 import pafy  # needs youtube_dl
 
 # File handling
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
 import os
 import sys
 
@@ -23,8 +21,8 @@ import sys
 # MaskRCNN config and setup paths
 ######################################
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
-ROOT_DIR = 'aktwelve_Mask_RCNN'
-assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
+ROOT_DIR = r'https://raw.githubusercontent.com/akTwelve/Mask_RCNN/master'
+#assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
 # sys.path.append("aktwelve_Mask_RCNN")
 sys.path.append(ROOT_DIR)
 # Import mrcnn libraries
@@ -33,13 +31,13 @@ import mrcnn.utils
 from mrcnn.model import MaskRCNN
 
 # Root directory of the project
-PROJECT_ROOT = Path("..\\")
+PROJECT_ROOT = Path(r"https://raw.githubusercontent.com/rejexx/Parkingspot_Vacancy/main/")
 
 # Directory to save logs and trained model (if doing your own training)
 MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
 
-# Local path to trained weights file
-COCO_MODEL_PATH = os.path.join(MODEL_DIR, "mask_rcnn_coco.h5")
+# path to trained weights file
+COCO_MODEL_PATH = "mask_rcnn_coco.h5" # "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5"
 
 # Preprocessed demo video
 DEMO_VIDEO = os.path.join(".\\models", "demo.avi")
@@ -137,6 +135,7 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
     #This may take a minute if it's not already available.    
     dl_weights_warning = st.warning("Getting COCO trained weights file")
     # Download COCO trained weights from Releases if needed
+    # I'm trying to run this from the online version, expect things to be slower.
     if not os.path.exists(COCO_MODEL_PATH):
         dl_weights_warning.warning(
             "Downloading COCO weights. This may take a while")
@@ -181,9 +180,9 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
     #  load a list of current segments for live stream
     playlist = m3u8.load(medVid.url)
     #get just the first clip (usually 0-7 available)
-    single_segmnet_url = playlist.segments[0].uri
+    single_segment_url = playlist.segments[0].uri
 
-    parked_car_boxes = get_bounding_boxes(single_segmnet_url, force_new_boxes)
+    parked_car_boxes = get_bounding_boxes(model, single_segment_url, force_new_boxes)
 
     # Process video, outputs a image to streamlit
     # This is where the real work actually happens
@@ -240,12 +239,11 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
             force_new_boxes - forces processing of video clip,
                               instead of loading parking spots from file"""
     # load or create bounding boxes
-    bounding_box_file = os.path.join(
-        PROJECT_ROOT, 'src\models\demo_parked_car_spots.csv')
+    bounding_box_file = r"https://raw.githubusercontent.com/rejexx/Parkingspot_Vacancy/main/src/models/demo_parked_car_spots.csv"
 
     # Load boxes from file if they exist
     # Else process the saved file and make boxes from cars that don't move.
-    if os.path.exists(bounding_box_file) and force_new_boxes == False:
+    if force_new_boxes == False:
         # if False:  #Force re-run
         parked_car_boxes = np.loadtxt(
             bounding_box_file, dtype='int', delimiter=',')
@@ -257,8 +255,9 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
         compute_boxes_warning = st.warning(
             "No saved bounding boxes - will process to make new ones")
         # detectSpots(video_file, video_save_file, model, utils, initial_check_frame_cutoff=10):
+        total_frames = frame_count(url, manual=True)
         parked_car_boxes = detectSpots(
-            url, model=model, utils=mrcnn.utils, initial_check_frame_cutoff=100)
+            url, model=model, utils=mrcnn.utils, initial_check_frame_cutoff=(total_frames-5))
 
         # One of those 'spots' is actually a car on the road, I'm going to remove it manually
         #bad_spot = np.where(parked_car_boxes == [303,   0, 355,  37])
@@ -266,10 +265,10 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
         #    parked_car_boxes, bad_spot[0][0], axis=0)
 
         # Save edited boxes to file for future use
-        np.savetxt(bounding_box_file, parked_car_boxes, delimiter=',')
+        #np.savetxt(bounding_box_file, parked_car_boxes, delimiter=',')
         compute_boxes_warning.empty()
-
-        st.write(f"Saved new bounding boxes to: {bounding_box_file}")
+        #Used for running locally, and for downloads!
+        #st.write(f"Saved new bounding boxes to: {bounding_box_file}")
 
     return parked_car_boxes
 
@@ -532,8 +531,12 @@ def countSpots(url, parked_car_boxes, model, utils, image_placeholder,
                 # Get where cars are currently located in the frame
                 car_boxes = get_car_boxes(r['rois'], r['class_ids'])
 
-                # See how much those cars overlap with the known parking spaces
-                overlaps = utils.compute_overlaps(parked_car_boxes, car_boxes)
+                if len(car_boxes) == 0:
+                    #If there are no cars spotted, set all overlaps to 0
+                    overlaps = [0.0]*len(parked_car_boxes)
+                else:
+                    # See how much those cars overlap with the known parking spaces
+                    overlaps = utils.compute_overlaps(parked_car_boxes, car_boxes)
 
                 # Assume no spaces are free until we find one that is free
                 free_spaces = 0
