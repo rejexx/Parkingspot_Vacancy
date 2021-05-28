@@ -3,6 +3,7 @@
 import numpy as np
 import streamlit as st
 import pandas as pd
+import altair as alt
 
 # Video getting and saving
 import cv2  # open cvs, image processing
@@ -17,8 +18,6 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import os
 import sys
-
-# Mask R-CNN, setup is more complex than an import, see below
 
 ######################################
 # MaskRCNN config and setup paths
@@ -78,32 +77,22 @@ def main():
         readme_text.empty()
         st.code(get_file_content_as_string("parkingSpotModel.py"))
     elif app_mode == "Demo data":
-        st.write("Demo mode")
+        readme_text.empty()
+        demo_mode()
     elif app_mode == "Live data":
         readme_text.empty()
-        
+        live_mode()
 
+    return None
+
+
+def live_mode():
         # streamlit placeholder for image/video
         image_placeholder = st.empty()
 
         # url for video
         # Jackson hole town square, live stream
         video_url = "https://youtu.be/DoUOrTJbIu4"
-
-        if st.sidebar.button('Show saved clip'):
-            # Temp file to store latest clip in, should delete these later.
-            st.write(f"Video: {(VIDEO_SOURCE)}")
-
-            total_frames = frame_count(VIDEO_SOURCE, manual=True) - 1
-
-            frame_index = st.slider(label="Show frame:", min_value=0, max_value=total_frames, value=0,
-                                    step=1, key="savedClipFrame", help="Choose frame to view")
-
-            # streamlit placeholder for image/video
-            image_placeholder = st.empty()
-
-            # Load the video file we want to display
-            display_single_frame(VIDEO_SOURCE, image_placeholder, frame_index)
 
         # Check for spots on temp file
         msg = """If selected, the algorithm will try to identify parking spots
@@ -116,7 +105,23 @@ def main():
                                 image_placeholder=image_placeholder,
                                 force_new_boxes=force_new_boxes)
 
-    return None
+
+def demo_mode():
+    # Temp file to store latest clip in, should delete these later.
+    total_frames = frame_count(VIDEO_SOURCE, manual=True) - 1
+
+    frame_index = st.sidebar.slider(label="Show frame:", min_value=0, max_value=total_frames, value=0,
+                            step=1, key="savedClipFrame", help="Choose frame to view")
+
+    # streamlit placeholder for image/video
+    image_placeholder = st.empty()
+    vacancy_per_frame = {i:i*0.25 for i in range(total_frames)}
+    bar_chart_vacancy(vacancy_per_frame, frame_index, in_sidebar=True)
+
+    # Load the video file we want to display
+    frame = display_single_frame(VIDEO_SOURCE, frame_index)
+    image_placeholder.image(frame, channels="BGR")
+
 
 
 # Download a single file and make its content available as a string.
@@ -201,16 +206,35 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
                                                 skip_n_frames=10)
 
     count_spots_warning.empty()  # Clear the warning/loading message
-
-    vacancy_per_frame_df = pd.DataFrame(
-        vacancy_per_frame, index=["Available spots"]).T
-    vacancy_per_frame_df.index.name = "Frame number"
-    st.bar_chart(data=pd.DataFrame(vacancy_per_frame_df))
-
-    st.write(f"Spaces available by frame: {vacancy_per_frame}")
+    bar_chart_vacancy(vacancy_per_frame, in_sidebar=False)
 
     return None
 
+
+def bar_chart_vacancy(vacancy_per_frame, frame_index=False, in_sidebar = False):
+    """Show a bar chart of vacancy per frame, with a line at 
+    frame index position (if argument included"""
+
+    vacancy_per_frame_df = pd.DataFrame(
+                            vacancy_per_frame, index=["Available spots"]).T
+    vacancy_per_frame_df.index.name = "Frame number"
+    # Altair charts can't read index, so move it to a column:
+    vacancy_per_frame_df = vacancy_per_frame_df.reset_index()
+
+    # Draw an altair chart in with information on the frame.
+    chart = alt.Chart(vacancy_per_frame_df, height=220).mark_area().encode(
+        alt.X("Frame number:Q", scale=alt.Scale(nice=False)),
+        alt.Y("Available spots:Q")
+        )
+
+    #Add vertical line to show frame in context
+    selected_frame_df = pd.DataFrame({"selected_frame": [frame_index]})
+    vline = alt.Chart(selected_frame_df).mark_rule(color="red").encode(x = "selected_frame")
+
+    if in_sidebar:
+        st.sidebar.altair_chart(alt.layer(chart, vline), use_container_width=True)
+    else:
+        st.altair_chart(alt.layer(chart, vline), use_container_width=True)
 
 # won't call the st.write if cached
 @st.cache(suppress_st_warning=True)
@@ -222,7 +246,7 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
                               instead of loading parking spots from file"""
     # load or create bounding boxes
     bounding_box_file = os.path.join(
-        PROJECT_ROOT, 'data\processed\spot_boxes_6.csv')
+        PROJECT_ROOT, 'data\processed\demo_parked_car_spots.csv')
 
     # Load boxes from file if they exist
     # Else process the saved file and make boxes from cars that don't move.
@@ -237,11 +261,9 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
         # Sources is either VDIEO_SOURCE or try with tempFile
         compute_boxes_warning = st.warning(
             "No saved bounding boxes - will process to make new ones")
-        save_file = os.path.join(VIDEO_SAVE_DIR,"findSpots3.avi")
         # detectSpots(video_file, video_save_file, model, utils, initial_check_frame_cutoff=10):
         parked_car_boxes = detectSpots(
-            url, video_save_file=save_file,
-            model=model, utils=mrcnn.utils, initial_check_frame_cutoff=100)
+            url, model=model, utils=mrcnn.utils, initial_check_frame_cutoff=100)
 
         # One of those 'spots' is actually a car on the road, I'm going to remove it manually
         #bad_spot = np.where(parked_car_boxes == [303,   0, 355,  37])
@@ -277,8 +299,8 @@ def display_video(image_placeholder, video_file):
     # Clean up everything when finished
     video_capture.release()
 
-
-def display_single_frame(video_file, image_placeholder, frame_index=0):
+# @st.cache(show_spinner=False)
+def display_single_frame(video_file, frame_index=0):
     """Displays a single frame in streamlit
         Inputs:
         video_file - path to file name or other openCV video
@@ -290,9 +312,8 @@ def display_single_frame(video_file, image_placeholder, frame_index=0):
     video_capture.set(1, frame_index)
     success, frame = video_capture.read()
 
-    image_placeholder.image(frame, channels="BGR")
-
     video_capture.release()
+    return frame
 
 
 def get_and_process_video(url, image_placeholder,
@@ -428,7 +449,7 @@ def dl_stream(url, filename, chunks):
         file.close()
     return None
 
-
+@st.cache()
 def frame_count(video_path, manual=False):
     """frame_count - get how many frames are in a video
     video_path - path to video
@@ -463,7 +484,6 @@ st.cache()
 
 
 def countSpots(url, parked_car_boxes, model, utils, image_placeholder,
-               video_save_file="annotatedVideo.avi",
                frames_to_process=True, free_space_frame_cut_off=5, show_video=True, skip_n_frames=10,
                n_frames_per_segment=100, n_segments=1):
     '''Counts how many spots are vacant at the end of the video 
@@ -656,7 +676,7 @@ def countSpots(url, parked_car_boxes, model, utils, image_placeholder,
     return (vacancy_per_frame, frame_array)
 
 
-def detectSpots(video_file, model, utils, video_save_file='findParkingSpaces.avi',
+def detectSpots(video_file, model, utils,
                  show_video=True, initial_check_frame_cutoff=10):
     '''detectSpots(video_file, initial_check_frame_cutoff=10)
     Returns: np 2D array of bounding boxes of all bounding boxes that are still occupied
