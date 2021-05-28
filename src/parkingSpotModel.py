@@ -41,12 +41,8 @@ MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
 # Local path to trained weights file
 COCO_MODEL_PATH = os.path.join(MODEL_DIR, "mask_rcnn_coco.h5")
 
-# Directory of images to run detection on/videos to process
-VIDEO_DIR = os.path.join(PROJECT_ROOT, ".\\data\\raw")
-# Could use it to train when 'all spots are full' then look for movement
-
-# Video file or camera to process
-VIDEO_SOURCE = os.path.join(VIDEO_DIR, "AllSpotsFull_299Frames.ts")
+# Preprocessed demo video
+DEMO_VIDEO = os.path.join(".\\models", "demo.avi")
 
 # Local path to output processed videos
 VIDEO_SAVE_DIR = os.path.join(PROJECT_ROOT, ".\\data\\processed")
@@ -70,15 +66,15 @@ def main():
      # Once we have the dependencies, add a selector for the app mode on the sidebar.
     st.sidebar.title("What to do")
     app_mode = st.sidebar.selectbox("Choose the app mode",
-        ["Show instructions", "Demo data", "Live data", "Show the source code"])
+        ["Show instructions", "Preprocessed demo data", "Live data", "Show the source code"])
     if app_mode == "Show instructions":
-        st.sidebar.success('To continue select "Run the app".')
+        st.sidebar.success('Next, try selecting "Preprocessed demo data".')
     elif app_mode == "Show the source code":
         readme_text.empty()
         st.code(get_file_content_as_string("parkingSpotModel.py"))
-    elif app_mode == "Demo data":
+    elif app_mode == "Preprocessed demo data":
         readme_text.empty()
-        demo_mode()
+        demo_mode(DEMO_VIDEO)
     elif app_mode == "Live data":
         readme_text.empty()
         live_mode()
@@ -106,9 +102,9 @@ def live_mode():
                                 force_new_boxes=force_new_boxes)
 
 
-def demo_mode():
+def demo_mode(DEMO_VIDEO):
     # Temp file to store latest clip in, should delete these later.
-    total_frames = frame_count(VIDEO_SOURCE, manual=True) - 1
+    total_frames = frame_count(DEMO_VIDEO, manual=True) - 1
 
     frame_index = st.sidebar.slider(label="Show frame:", min_value=0, max_value=total_frames, value=0,
                             step=1, key="savedClipFrame", help="Choose frame to view")
@@ -119,7 +115,7 @@ def demo_mode():
     bar_chart_vacancy(vacancy_per_frame, frame_index, in_sidebar=True)
 
     # Load the video file we want to display
-    frame = display_single_frame(VIDEO_SOURCE, frame_index)
+    frame = display_single_frame(DEMO_VIDEO, frame_index)
     image_placeholder.image(frame, channels="BGR")
 
 
@@ -201,7 +197,6 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
                                                 model=model,
                                                 utils=mrcnn.utils,
                                                 image_placeholder=image_placeholder,
-                                                video_save_file=VIDEO_SAVE_FILE,
                                                 free_space_frame_cut_off=0,
                                                 skip_n_frames=10)
 
@@ -246,7 +241,7 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
                               instead of loading parking spots from file"""
     # load or create bounding boxes
     bounding_box_file = os.path.join(
-        PROJECT_ROOT, 'data\processed\demo_parked_car_spots.csv')
+        PROJECT_ROOT, 'src\models\demo_parked_car_spots.csv')
 
     # Load boxes from file if they exist
     # Else process the saved file and make boxes from cars that don't move.
@@ -255,7 +250,7 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
         parked_car_boxes = np.loadtxt(
             bounding_box_file, dtype='int', delimiter=',')
         st.write(
-            f"Loaded {len(parked_car_boxes)} existing bounding boxes from file")
+            f"Using premade parking spot map from file with {len(parked_car_boxes)} spots")
     else:
         # Learn where boxes are from movie, and save video with annotations
         # Sources is either VDIEO_SOURCE or try with tempFile
@@ -323,7 +318,12 @@ def get_and_process_video(url, image_placeholder,
     returns array of images.
 
     Youtube segments don't cleanly exit from openCV, 
-    so I am instead chopping them off a little bit
+    so don't go more than 110ish frames per segment
+    url: youtube URL to pull segment from
+    image_placeholder: streamlit image or st.empty() obj to display video in
+    n_frames_per_segment: how many frames to grab per each video clip
+    n_segments: how many segments to use, each is about 5 seconds. 
+        Usually only 7 exist at once.
     '''
 
     # Use pafy to get the 360p url
@@ -408,47 +408,6 @@ def write_frames_to_file(frame_array, file_name="video.avi", nth_frames=1, fps=1
     return None
 
 
-def dl_stream(url, filename, chunks):
-    """
-    Download each chunk to file
-    input: url, filename, and number of chunks (int)
-    output: saves file at filename location
-    returns none.
-    """
-    pre_time_stamp = datetime(1, 1, 1, 0, 0, tzinfo=timezone.utc)
-    # Repeat for each chunk
-    # Needs to be in chunks beceause
-    #  1) it's live and
-    #  2) it won't let you leave the stream open forever
-    i = 1
-    while i <= chunks:
-
-        # Open stream
-        stream_segment = get_stream(url)
-
-        # Get current time on video
-        cur_time_stamp = stream_segment.program_date_time
-        # Only get next time step, wait if it's not new yet
-        if cur_time_stamp <= pre_time_stamp:
-            # Don't increment counter until we have a new chunk
-            time.sleep(0.5)  # Wait half a sec
-            pass
-        else:
-            # Open file for writing stream
-            file = open(filename, 'ab+')  # ab+ means keep adding to file
-            # Write stream to file
-            with urllib.request.urlopen(stream_segment.uri) as response:
-                html = response.read()
-                file.write(html)
-
-            # Update time stamp
-            pre_time_stamp = cur_time_stamp
-            time.sleep(stream_segment.duration-1)  # Wait duration time - 1
-
-            i += 1  # only increment if we got a new chunk
-        file.close()
-    return None
-
 @st.cache()
 def frame_count(video_path, manual=False):
     """frame_count - get how many frames are in a video
@@ -478,9 +437,6 @@ def frame_count(video_path, manual=False):
             frames = manual_count(cap)
     cap.release()
     return frames
-
-
-st.cache()
 
 
 def countSpots(url, parked_car_boxes, model, utils, image_placeholder,
@@ -601,7 +557,7 @@ def countSpots(url, parked_car_boxes, model, utils, image_placeholder,
                         if car_boxes_open_frames[row]+1 >= free_space_frame_cut_off:
                             # Parking space not occupied! Draw a green box around it
                             cv2.rectangle(frame, (x1, y1),
-                                          (x2, y2), (0, 255, 0), 3)
+                                          (x2, y2), (0, 255, 0), 1)
 
                             # Count this as occupied, and don't let it be immediately changed
                             car_boxes_open_frames[row] = max(
@@ -630,7 +586,7 @@ def countSpots(url, parked_car_boxes, model, utils, image_placeholder,
 
                             # Parking space still 'free'. Draw a green box around it
                             cv2.rectangle(frame, (x1, y1),
-                                          (x2, y2), (0, 255, 0), 3)
+                                          (x2, y2), (0, 255, 0), 1)
 
                     # Write the IoU measurement inside the box
                     font = cv2.FONT_HERSHEY_DUPLEX
