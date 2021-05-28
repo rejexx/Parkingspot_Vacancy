@@ -15,21 +15,11 @@ import pafy  # needs youtube_dl
 # File handling
 from pathlib import Path
 import os
-import sys
+import pickle
+from io import BytesIO
+import requests
 
-######################################
-# MaskRCNN config and setup paths
-######################################
-# Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
-ROOT_DIR = r'https://raw.githubusercontent.com/akTwelve/Mask_RCNN/master'
-#assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
-# sys.path.append("aktwelve_Mask_RCNN")
-sys.path.append(ROOT_DIR)
-# Import mrcnn libraries
-import mrcnn.config
-import mrcnn.utils
-from mrcnn.model import MaskRCNN
-
+# don't really need most of these anymore.
 # Root directory of the project
 PROJECT_ROOT = Path(r"https://raw.githubusercontent.com/rejexx/Parkingspot_Vacancy/main/")
 
@@ -40,7 +30,7 @@ MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
 COCO_MODEL_PATH = "mask_rcnn_coco.h5" # "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5"
 
 # Preprocessed demo video
-DEMO_VIDEO = os.path.join(".\\models", "demo.avi")
+DEMO_VIDEO = os.path.join(".\\streamlit_app", "demo.avi")
 
 # Local path to output processed videos
 VIDEO_SAVE_DIR = os.path.join(PROJECT_ROOT, ".\\data\\processed")
@@ -69,7 +59,7 @@ def main():
         st.sidebar.success('Next, try selecting "Preprocessed demo data".')
     elif app_mode == "Show the source code":
         readme_text.empty()
-        st.code(get_file_content_as_string("parkingSpotModel.py"))
+        st.code(get_file_content_as_string("streamlit_app.py"))
     elif app_mode == "Preprocessed demo data":
         readme_text.empty()
         demo_mode(DEMO_VIDEO)
@@ -81,23 +71,37 @@ def main():
 
 
 def live_mode():
-        # streamlit placeholder for image/video
-        image_placeholder = st.empty()
+    ######################################
+    # MaskRCNN config and setup paths
+    ######################################
+    # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
+    ROOT_DIR = r'https://raw.githubusercontent.com/akTwelve/Mask_RCNN/master'
+    #assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
+    # sys.path.append("aktwelve_Mask_RCNN")
+    #sys.path.append(ROOT_DIR)
+    #pip install git+https://github.com/akTwelve/Mask_RCNN/master.git
+    # Import mrcnn libraries
+    import mrcnn.config
+    import mrcnn.utils
+    from mrcnn.model import MaskRCNN
 
-        # url for video
-        # Jackson hole town square, live stream
-        video_url = "https://youtu.be/DoUOrTJbIu4"
+    # streamlit placeholder for image/video
+    image_placeholder = st.empty()
 
-        # Check for spots on temp file
-        msg = """If selected, the algorithm will try to identify parking spots
-                based on location of cars that don't move in the video clip.
-                This works best if all parking spots are full in supplied clip"""
-        force_new_boxes = st.sidebar.checkbox("Remake parking spot map", help=msg)
+    # url for video
+    # Jackson hole town square, live stream
+    video_url = "https://youtu.be/DoUOrTJbIu4"
 
-        if st.sidebar.button("Process video clip"):
-            process_video_clip(video_url=video_url,
-                                image_placeholder=image_placeholder,
-                                force_new_boxes=force_new_boxes)
+    # Check for spots on temp file
+    msg = """If selected, the algorithm will try to identify parking spots
+            based on location of cars that don't move in the video clip.
+            This works best if all parking spots are full in supplied clip"""
+    force_new_boxes = st.sidebar.checkbox("Remake parking spot map", help=msg)
+
+    if st.sidebar.button("Process video clip"):
+        process_video_clip(video_url=video_url,
+                            image_placeholder=image_placeholder,
+                            force_new_boxes=force_new_boxes)
 
 
 def demo_mode(DEMO_VIDEO):
@@ -109,12 +113,17 @@ def demo_mode(DEMO_VIDEO):
 
     # streamlit placeholder for image/video
     image_placeholder = st.empty()
-    vacancy_per_frame = {i:i*0.25 for i in range(total_frames)}
+    file = r"https://github.com/rejexx/Parkingspot_Vacancy/blob/main/src/streamlit_app/demo_vacant_spots_data.pkl?raw=true"
+    vacancy_per_frame = load_pickle(file)
     bar_chart_vacancy(vacancy_per_frame, frame_index, in_sidebar=True)
 
     # Load the video file we want to display
     frame = display_single_frame(DEMO_VIDEO, frame_index)
     image_placeholder.image(frame, channels="BGR")
+    st.write("Red boxes = occupied spot")
+    st.write("Green boxes = available spot")
+    st.markdown("This file was processed using Mask R-CNN to detect when cars overlapped with parking spots")
+    st.write("Parking spaces were also created using Mask R-CNN -  by detecting spots that had cars that didn't move")
 
 
 
@@ -222,13 +231,22 @@ def bar_chart_vacancy(vacancy_per_frame, frame_index=False, in_sidebar = False):
         )
 
     #Add vertical line to show frame in context
-    selected_frame_df = pd.DataFrame({"selected_frame": [frame_index]})
+    selected_frame_df = pd.DataFrame({"selected_frame": [frame_index+1]})
     vline = alt.Chart(selected_frame_df).mark_rule(color="red").encode(x = "selected_frame")
 
     if in_sidebar:
         st.sidebar.altair_chart(alt.layer(chart, vline), use_container_width=True)
     else:
         st.altair_chart(alt.layer(chart, vline), use_container_width=True)
+
+@st.cache()
+def load_pickle(url):
+    """Loads file from pickle url"""
+    # Tip from Jqadrad
+    # https://stackoverflow.com/questions/61786481/why-cant-i-read-a-joblib-file-from-my-github-repo
+    file = BytesIO(requests.get(url).content)
+    return pickle.load(file)
+
 
 # won't call the st.write if cached
 @st.cache(suppress_st_warning=True)
