@@ -27,10 +27,10 @@ import sys
 ######################################
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
 #ROOT_DIR = r'https://raw.githubusercontent.com/akTwelve/Mask_RCNN/master'
-ROOT_DIR = 'aktwelve_Mask_RCNN'
-assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
+#ROOT_DIR = 'aktwelve_Mask_RCNN'
+#assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
 #sys.path.append("aktwelve_Mask_RCNN")
-sys.path.append(ROOT_DIR)
+#sys.path.append(ROOT_DIR)
 
 import mrcnn.config
 import mrcnn.utils
@@ -180,18 +180,18 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
     weight_warning = st.warning("Loading model weights, hold on...")
 
     # Configuration that will be used by the Mask-RCNN library
-    def maskRCNN_model(model_dir, trained_weights_file):     
-        # Configuration that will be used by the Mask-RCNN library
-        class MaskRCNNConfig(mrcnn.config.Config):
+    class MaskRCNNConfig(mrcnn.config.Config):
             NAME = "coco_pretrained_model_config"
             IMAGES_PER_GPU = 1
             GPU_COUNT = 1
             NUM_CLASSES = 1 + 80  # COCO dataset has 80 classes + one background class
             DETECTION_MIN_CONFIDENCE = 0.6
+
+    # Make a MaskRCNN model, would be nice to cache this
+    def maskRCNN_model(model_dir, trained_weights_file):     
         
         # Create a Mask-RCNN model in inference mode
         model = MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=MaskRCNNConfig())
-
         
         # Load pre-trained model
         model.load_weights(trained_weights_file, by_name=True)
@@ -204,6 +204,8 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
 
     weight_warning.empty()  # Make the warning go away, done loading
 
+    video_warning = st.warning("Getting a clip from youTube...")
+
     # Use pafy to the urls for video clip
     video = pafy.new(video_url)
     #get the 360p url
@@ -212,6 +214,8 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
     playlist = m3u8.load(medVid.url)
     #get just the first clip (usually 0-7 available)
     single_segment_url = playlist.segments[0].uri
+    video_warning.empty() # done loading clip
+    
 
     parked_car_boxes = get_bounding_boxes(model, single_segment_url, force_new_boxes)
 
@@ -227,7 +231,7 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
                                                 model=model,
                                                 utils=mrcnn.utils,
                                                 image_placeholder=image_placeholder,
-                                                free_space_frame_cut_off=0,
+                                                free_space_frame_cut_off=2,
                                                 skip_n_frames=10)
 
     count_spots_warning.empty()  # Clear the warning/loading message
