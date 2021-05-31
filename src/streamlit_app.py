@@ -18,15 +18,40 @@ import os
 import pickle
 from io import BytesIO
 import requests
+import sys
+
+# Import mrcnn libraries
+
+######################################
+# MaskRCNN config and setup paths
+######################################
+# Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
+#ROOT_DIR = r'https://raw.githubusercontent.com/akTwelve/Mask_RCNN/master'
+ROOT_DIR = 'aktwelve_Mask_RCNN'
+assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
+#sys.path.append("aktwelve_Mask_RCNN")
+sys.path.append(ROOT_DIR)
+
+import mrcnn.config
+import mrcnn.utils
+from mrcnn.model import MaskRCNN
+
 
 # Root directory of the project
 PROJECT_ROOT = Path(r"https://raw.githubusercontent.com/rejexx/Parkingspot_Vacancy/main/")
 
 # Directory to save logs and trained model (if doing your own training)
+MODEL_DIR = r"C:\springboard\Parkingspot_Vacancy\models"
+
+# Root directory of the project
+PROJECT_ROOT = Path("..\\")
+
+# Directory to save logs and trained model (if doing your own training)
 MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
 
 # path to trained weights file
-COCO_MODEL_PATH = "mask_rcnn_coco.h5" # "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5"
+#COCO_MODEL_PATH = "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5" #"mask_rcnn_coco.h5" # local
+COCO_MODEL_PATH ="mask_rcnn_coco.h5" # local
 
 # Preprocessed demo video
 DEMO_VIDEO = r"https://github.com/rejexx/Parkingspot_Vacancy/blob/main/src/streamlit_app/demo.avi?raw=true"
@@ -60,30 +85,20 @@ def main():
         readme_text.empty()
         st.code(get_file_content_as_string("streamlit_app.py"))
     elif app_mode == "Preprocessed demo data":
+        # Add horizontal line to sidebar
+        st.sidebar.markdown("___")
         readme_text.empty()
         demo_mode(DEMO_VIDEO)
     elif app_mode == "Live data":
+        # Add horizontal line to sidebar
+        st.sidebar.markdown("___")
         readme_text.empty()
         live_mode()
 
+
     return None
 
-
 def live_mode():
-    ######################################
-    # MaskRCNN config and setup paths
-    ######################################
-    # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
-    ROOT_DIR = r'https://raw.githubusercontent.com/akTwelve/Mask_RCNN/master'
-    #assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
-    # sys.path.append("aktwelve_Mask_RCNN")
-    #sys.path.append(ROOT_DIR)
-    #pip install git+https://github.com/akTwelve/Mask_RCNN/master.git
-    # Import mrcnn libraries
-    import mrcnn.config
-    import mrcnn.utils
-    from mrcnn.model import MaskRCNN
-
     # streamlit placeholder for image/video
     image_placeholder = st.empty()
 
@@ -94,7 +109,7 @@ def live_mode():
     # Check for spots on temp file
     msg = """If selected, the algorithm will try to identify parking spots
             based on location of cars that don't move in the video clip.
-            This works best if all parking spots are full in supplied clip"""
+            This works best if all parking spots are full in the first and last frames"""
     force_new_boxes = st.sidebar.checkbox("Remake parking spot map", help=msg)
 
     if st.sidebar.button("Process video clip"):
@@ -104,25 +119,35 @@ def live_mode():
 
 
 def demo_mode(DEMO_VIDEO):
+    st.sidebar.write("Display a specific frame from preprocessed data or watch the entire video")
+    # streamlit placeholder for image/video
+    image_placeholder = st.empty()
+
     # Temp file to store latest clip in, should delete these later.
     total_frames = frame_count(DEMO_VIDEO, manual=True) - 1
 
-    frame_index = st.sidebar.slider(label="Show frame:", min_value=0, max_value=total_frames, value=0,
+    frame_index = st.sidebar.slider(label="Show frame:", min_value=1, max_value=total_frames, value=1,
                             step=1, key="savedClipFrame", help="Choose frame to view")
 
-    # streamlit placeholder for image/video
-    image_placeholder = st.empty()
     file = r"https://github.com/rejexx/Parkingspot_Vacancy/blob/main/src/streamlit_app/demo_vacant_spots_data.pkl?raw=true"
     vacancy_per_frame = load_pickle(file)
-    bar_chart_vacancy(vacancy_per_frame, frame_index, in_sidebar=True)
+    chart_placeholder = st.sidebar.empty()
 
-    # Load the video file we want to display
-    frame = display_single_frame(DEMO_VIDEO, frame_index)
-    image_placeholder.image(frame, channels="BGR")
+    #Show play video button and do actions according to user input
+    if st.sidebar.button("Play video"):
+        display_video(image_placeholder, DEMO_VIDEO, show_chart = chart_placeholder, vacancy_per_frame = vacancy_per_frame)
+    else:
+        bar_chart_vacancy(vacancy_per_frame, frame_index, chart_placeholder)
+
+        # Load the video file we want to display
+        frame = display_single_frame(DEMO_VIDEO, frame_index-1)  # 0 indexed
+        image_placeholder.image(frame, channels="BGR")
+
+    #Descriptive text under the video
     st.write("Red boxes = occupied spot")
     st.write("Green boxes = available spot")
     st.markdown("This file was processed using Mask R-CNN to detect when cars overlapped with parking spots")
-    st.write("Parking spaces were also created using Mask R-CNN -  by detecting spots that had cars that didn't move")
+    st.write("Parking spaces were also identified using Mask R-CNN -  by detecting spots that had cars that didn't move")
 
 
 
@@ -144,10 +169,10 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
     dl_weights_warning = st.warning("Getting COCO trained weights file")
     # Download COCO trained weights from Releases if needed
     # I'm trying to run this from the online version, expect things to be slower.
-    if not os.path.exists(COCO_MODEL_PATH):
-        dl_weights_warning.warning(
-            "Downloading COCO weights. This may take a while")
-        mrcnn.utils.download_trained_weights(COCO_MODEL_PATH)
+    # if not os.path.exists(COCO_MODEL_PATH):
+    #     dl_weights_warning.warning(
+    #         "Downloading COCO weights. This may take a while")
+    #     mrcnn.utils.download_trained_weights(COCO_MODEL_PATH)
 
     dl_weights_warning.empty()
 
@@ -155,29 +180,27 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
     weight_warning = st.warning("Loading model weights, hold on...")
 
     # Configuration that will be used by the Mask-RCNN library
-    class MaskRCNNConfig(mrcnn.config.Config):
-        NAME = "coco_pretrained_model_config"
-        IMAGES_PER_GPU = 1
-        GPU_COUNT = 1
-        NUM_CLASSES = 1 + 80  # COCO dataset has 80 classes + one background class
-        DETECTION_MIN_CONFIDENCE = 0.6
-
-    # @st.cache()  #This is mutating, and causes issues.  Would be nice to fix
-    def maskRCNN_model(model_dir, trained_weights_file):
-        """Loads model weights and returns model"""
+    def maskRCNN_model(model_dir, trained_weights_file):     
+        # Configuration that will be used by the Mask-RCNN library
+        class MaskRCNNConfig(mrcnn.config.Config):
+            NAME = "coco_pretrained_model_config"
+            IMAGES_PER_GPU = 1
+            GPU_COUNT = 1
+            NUM_CLASSES = 1 + 80  # COCO dataset has 80 classes + one background class
+            DETECTION_MIN_CONFIDENCE = 0.6
+        
         # Create a Mask-RCNN model in inference mode
-        model = MaskRCNN(mode="inference",
-                            model_dir=MODEL_DIR, config=MaskRCNNConfig())
+        model = MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=MaskRCNNConfig())
 
+        
         # Load pre-trained model
         model.load_weights(trained_weights_file, by_name=True)
         model.keras_model._make_predict_function()
-
+        
         return model
 
-    # Create model with saved weights
-    model = maskRCNN_model(model_dir=MODEL_DIR,
-                            trained_weights_file=COCO_MODEL_PATH)
+    #Create model with saved weights
+    model = maskRCNN_model(model_dir=MODEL_DIR, trained_weights_file=COCO_MODEL_PATH)
 
     weight_warning.empty()  # Make the warning go away, done loading
 
@@ -208,14 +231,17 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
                                                 skip_n_frames=10)
 
     count_spots_warning.empty()  # Clear the warning/loading message
-    bar_chart_vacancy(vacancy_per_frame, in_sidebar=False)
+
+    #Show chart of output frames, later add some animation/rewatching ability
+    bar_chart_vacancy(vacancy_per_frame)
 
     return None
 
 
-def bar_chart_vacancy(vacancy_per_frame, frame_index=False, in_sidebar = False):
+def bar_chart_vacancy(vacancy_per_frame, frame_index=False, chart_placeholder = None):
     """Show a bar chart of vacancy per frame, with a line at 
-    frame index position (if argument included"""
+    frame index position (if argument included)
+    chart_placeholder: st. empty object for where chart should appear"""
 
     vacancy_per_frame_df = pd.DataFrame(
                             vacancy_per_frame, index=["Available spots"]).T
@@ -230,13 +256,14 @@ def bar_chart_vacancy(vacancy_per_frame, frame_index=False, in_sidebar = False):
         )
 
     #Add vertical line to show frame in context
-    selected_frame_df = pd.DataFrame({"selected_frame": [frame_index+1]})
+    selected_frame_df = pd.DataFrame({"selected_frame": [frame_index]})
     vline = alt.Chart(selected_frame_df).mark_rule(color="red").encode(x = "selected_frame")
 
-    if in_sidebar:
-        st.sidebar.altair_chart(alt.layer(chart, vline), use_container_width=True)
-    else:
-        st.altair_chart(alt.layer(chart, vline), use_container_width=True)
+    #display chart at given location, updating the passed chart object
+    if chart_placeholder == None:
+        chart_placeholder = st.empty()
+
+    chart_placeholder.altair_chart(alt.layer(chart, vline), use_container_width=True)
 
 @st.cache()
 def load_pickle(url):
@@ -256,7 +283,7 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
             force_new_boxes - forces processing of video clip,
                               instead of loading parking spots from file"""
     # load or create bounding boxes
-    bounding_box_file = r"https://raw.githubusercontent.com/rejexx/Parkingspot_Vacancy/main/src/models/demo_parked_car_spots.csv"
+    bounding_box_file = r"https://raw.githubusercontent.com/rejexx/Parkingspot_Vacancy/main/src/streamlit_app/demo_parked_car_spots.csv"
 
     # Load boxes from file if they exist
     # Else process the saved file and make boxes from cars that don't move.
@@ -290,13 +317,16 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
     return parked_car_boxes
 
 
-def display_video(image_placeholder, video_file):
+def display_video(image_placeholder, video_file, show_chart=False, vacancy_per_frame=None):
     """Shows a video in given streamlit placeholder image
-    image_placeholder - an st.empty streamlit object
-    video_file - string path to video, entire video will be shown"""
+    image_placeholder: an st.empty streamlit object
+    video_file: string path to video, entire video will be shown
+    show_chart: st.empty object to be a chart
+    vacancy_per_frame: dictionary of frame_num: count_vacant_spots"""
 
     # Load the video file we want to display
     video_capture = cv2.VideoCapture(video_file)
+    frame_index = 0
 
     # Loop over each frame of video
     while video_capture.isOpened():
@@ -304,8 +334,12 @@ def display_video(image_placeholder, video_file):
         if not success:
             break
 
+        frame_index += 1
+        if show_chart != False:
+            bar_chart_vacancy(vacancy_per_frame, frame_index, chart_placeholder=show_chart)
+
         image_placeholder.image(frame, channels="BGR")
-        time.sleep(0.01)
+        time.sleep(0.5)
 
     # Clean up everything when finished
     video_capture.release()
