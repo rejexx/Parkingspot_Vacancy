@@ -19,7 +19,6 @@ import pickle
 from io import BytesIO
 import requests
 
-# don't really need most of these anymore.
 # Root directory of the project
 PROJECT_ROOT = Path(r"https://raw.githubusercontent.com/rejexx/Parkingspot_Vacancy/main/")
 
@@ -30,7 +29,7 @@ MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
 COCO_MODEL_PATH = "mask_rcnn_coco.h5" # "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5"
 
 # Preprocessed demo video
-DEMO_VIDEO = os.path.join(".\\streamlit_app", "demo.avi")
+DEMO_VIDEO = r"https://github.com/rejexx/Parkingspot_Vacancy/blob/main/src/streamlit_app/demo.avi?raw=true"
 
 # Local path to output processed videos
 VIDEO_SAVE_DIR = os.path.join(PROJECT_ROOT, ".\\data\\processed")
