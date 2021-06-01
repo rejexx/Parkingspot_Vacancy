@@ -825,7 +825,7 @@ def detectSpots(video_file, model, utils,
 
     # Clean up everything when finished
     video_capture.release()
-    write_frames_to_file(frame_array=frame_array, file_name=video_save_file)
+    #write_frames_to_file(frame_array=frame_array, file_name=video_save_file)
 
     # Show final image in matplotlib for ref
     return parked_car_boxes
