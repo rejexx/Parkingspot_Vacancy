@@ -50,8 +50,8 @@ PROJECT_ROOT = Path("..\\")
 MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
 
 # path to trained weights file
-COCO_MODEL_PATH = "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5" #"mask_rcnn_coco.h5" # local
-#COCO_MODEL_PATH ="mask_rcnn_coco.h5" # local
+#COCO_MODEL_PATH = "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5" #"mask_rcnn_coco.h5" # local
+COCO_MODEL_PATH ="mask_rcnn_coco.h5" # local
 
 # Preprocessed demo video
 DEMO_VIDEO = r"https://github.com/rejexx/Parkingspot_Vacancy/blob/main/src/streamlit_app/demo.avi?raw=true"
@@ -172,6 +172,7 @@ def download_weights(COCO_MODEL_PATH):
     else:
         try:
             #download it
+            st.write("Downloading weights")
             mrcnn.utils.download_trained_weights(COCO_MODEL_PATH)
         except:
             # if download failed, return unsuccessful
@@ -186,9 +187,9 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
         video_url: YouTube video URL"""
 
     dl_weights_warning = st.warning("Getting COCO trained weights file")
-    # result = download_weights(COCO_MODEL_PATH)
+    result = download_weights(COCO_MODEL_PATH)
 
-    if True == False:
+    if result == False:
         st.Write("Could not get weights file")
         return None
     dl_weights_warning.empty()
