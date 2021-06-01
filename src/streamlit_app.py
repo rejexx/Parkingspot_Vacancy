@@ -306,20 +306,17 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
     # Load boxes from file if they exist
     # Else process the saved file and make boxes from cars that don't move.
     if force_new_boxes == False:
-        # if False:  #Force re-run
         parked_car_boxes = np.loadtxt(
             bounding_box_file, dtype='int', delimiter=',')
-        st.write(
-            f"Using premade parking spot map from file with {len(parked_car_boxes)} spots")
     else:
         # Learn where boxes are from movie, and save video with annotations
         # Sources is either VDIEO_SOURCE or try with tempFile
         compute_boxes_warning = st.warning(
-            "No saved bounding boxes - will process to make new ones")
+            "Computing new bounding boxes based on video clip")
         # detectSpots(video_file, video_save_file, model, utils, initial_check_frame_cutoff=10):
         total_frames = frame_count(url, manual=True)
         parked_car_boxes = detectSpots(
-            url, model=model, utils=mrcnn.utils, initial_check_frame_cutoff=(total_frames-5))
+            url, model=model, initial_check_frame_cutoff=(total_frames-5))
 
         # One of those 'spots' is actually a car on the road, I'm going to remove it manually
         #bad_spot = np.where(parked_car_boxes == [303,   0, 355,  37])
@@ -605,7 +602,7 @@ def countSpots(url, parked_car_boxes, model, image_placeholder,
                     overlaps = [0.0]*len(parked_car_boxes)
                 else:
                     # See how much those cars overlap with the known parking spaces
-                    overlaps = utils.compute_overlaps(parked_car_boxes, car_boxes)
+                    overlaps = mrcnn.utils.compute_overlaps(parked_car_boxes, car_boxes)
 
                 # Assume no spaces are free until we find one that is free
                 free_spaces = 0
@@ -704,7 +701,7 @@ def countSpots(url, parked_car_boxes, model, image_placeholder,
     return (vacancy_per_frame, frame_array)
 
 
-def detectSpots(video_file, model, utils,
+def detectSpots(video_file, model,
                  show_video=True, initial_check_frame_cutoff=10):
     '''detectSpots(video_file, initial_check_frame_cutoff=10)
     Returns: np 2D array of bounding boxes of all bounding boxes that are still occupied
@@ -772,7 +769,7 @@ def detectSpots(video_file, model, utils,
                 car_boxes = get_car_boxes(r['rois'], r['class_ids'])
 
                 # See how much those cars overlap with the known parking spaces
-                overlaps = utils.compute_overlaps(parked_car_boxes, car_boxes)
+                overlaps = mrcnn.utils.compute_overlaps(parked_car_boxes, car_boxes)
 
                 # Loop through each known parking space box
                 for row, areas in enumerate(zip(parked_car_boxes, overlaps)):
