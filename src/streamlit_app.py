@@ -50,8 +50,8 @@ PROJECT_ROOT = Path("..\\")
 MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
 
 # path to trained weights file
-#COCO_MODEL_PATH = "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5" #"mask_rcnn_coco.h5" # local
-COCO_MODEL_PATH ="mask_rcnn_coco.h5" # local
+COCO_MODEL_PATH = r"https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5" #"mask_rcnn_coco.h5" # local
+#COCO_MODEL_PATH ="mask_rcnn_coco.h5" # local
 
 # Preprocessed demo video
 DEMO_VIDEO = r"https://github.com/rejexx/Parkingspot_Vacancy/blob/main/src/streamlit_app/demo.avi?raw=true"
@@ -159,25 +159,45 @@ def get_file_content_as_string(path):
     return response.read().decode("utf-8")
 
 
-def download_weights(COCO_MODEL_PATH):
-    """Download file if it doesn't exist
-    returns true if file was found or downloaded"""
-    #This may take a minute if it's not already available.    
+    # Configuration that will be used by the Mask-RCNN library
+class MaskRCNNConfig(mrcnn.config.Config):
+        NAME = "coco_pretrained_model_config"
+        IMAGES_PER_GPU = 1
+        GPU_COUNT = 1
+        NUM_CLASSES = 1 + 80  # COCO dataset has 80 classes + one background class
+        DETECTION_MIN_CONFIDENCE = 0.6
+
+@st.cache(suppress_st_warning=True)
+def get_weights():     
+    """Uses existing or downloads weight file from google drive"""
+    save_dest = Path('coco_weights')
+    save_dest.mkdir(exist_ok=True)
+
+    #temporary location
+    cloud_model_location = "1DR2t63XpubkmIhw7h75sfrqLo4DzJXul"
+
+    f_checkpoint = Path("model/mask_rcnn_coco.h5")
+
+    if not f_checkpoint.exists():
+        with st.spinner("Downloading model..."):
+            from GD_download import download_file_from_google_drive
+            download_file_from_google_drive(cloud_model_location, f_checkpoint,
+            show_progress_bar = True)
+    return f_checkpoint
+
+# Make a MaskRCNN model, would be nice to cache this
+def maskRCNN_model():
+    """Makes a Mask R-CNN model, ideally save to cache for speed"""
+    weights = get_weights()
+    # Create a Mask-RCNN model in inference mode
+    model = MaskRCNN(mode="inference", model_dir="model", config=MaskRCNNConfig())
     
-    # Download COCO trained weights from Releases if needed
-    # I'm trying to run this from the online version, expect things to be slower.
-    if Path(COCO_MODEL_PATH).is_file():
-        # file is good to go
-        return True
-    else:
-        try:
-            #download it
-            st.write("Downloading weights")
-            mrcnn.utils.download_trained_weights(COCO_MODEL_PATH)
-        except:
-            # if download failed, return unsuccessful
-            return False
-    return True
+    # Load pre-trained model
+    model.load_weights(weights, by_name=True, save_logs=False)
+    model.keras_model._make_predict_function()
+    
+    return model
+
 
 
 def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
@@ -186,39 +206,11 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
         force_new_boxes: will force creation of new parking spot boundary boxes
         video_url: YouTube video URL"""
 
-    dl_weights_warning = st.warning("Getting COCO trained weights file")
-    result = download_weights(COCO_MODEL_PATH)
-
-    if result == False:
-        st.Write("Could not get weights file")
-        return None
-    dl_weights_warning.empty()
-
     # Give message while loading weights
-    weight_warning = st.warning("Loading model weights, hold on...")
-
-    # Configuration that will be used by the Mask-RCNN library
-    class MaskRCNNConfig(mrcnn.config.Config):
-            NAME = "coco_pretrained_model_config"
-            IMAGES_PER_GPU = 1
-            GPU_COUNT = 1
-            NUM_CLASSES = 1 + 80  # COCO dataset has 80 classes + one background class
-            DETECTION_MIN_CONFIDENCE = 0.6
-
-    # Make a MaskRCNN model, would be nice to cache this
-    def maskRCNN_model(model_dir, trained_weights_file):     
-        
-        # Create a Mask-RCNN model in inference mode
-        model = MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=MaskRCNNConfig())
-        
-        # Load pre-trained model
-        model.load_weights(trained_weights_file, by_name=True)
-        model.keras_model._make_predict_function()
-        
-        return model
+    weight_warning = st.warning("Loading, sit tight a minute...")
 
     #Create model with saved weights
-    model = maskRCNN_model(model_dir=MODEL_DIR, trained_weights_file=COCO_MODEL_PATH)
+    model = maskRCNN_model()
 
     weight_warning.empty()  # Make the warning go away, done loading
 

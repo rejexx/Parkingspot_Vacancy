@@ -1820,7 +1820,7 @@ class MaskRCNN(object):
     The actual Keras model is in the keras_model property.
     """
 
-    def __init__(self, mode, config, model_dir, save_logs=False):
+    def __init__(self, mode, config, model_dir):
         """
         mode: Either "training" or "inference"
         config: A Sub-class of the Config class
@@ -1831,7 +1831,6 @@ class MaskRCNN(object):
         self.mode = mode
         self.config = config
         self.model_dir = model_dir
-        self.save_logs = save_logs
         self.set_log_dir()
         self.keras_model = self.build(mode=mode, config=config)
 
@@ -2100,7 +2099,7 @@ class MaskRCNN(object):
         checkpoint = os.path.join(dir_name, checkpoints[-1])
         return checkpoint
 
-    def load_weights(self, filepath, by_name=False, exclude=None):
+    def load_weights(self, filepath, by_name=False, exclude=None, save_logs=False):
         """Modified version of the corresponding Keras function with
         the addition of multi-GPU support and the ability to exclude
         some layers from loading.
@@ -2134,7 +2133,7 @@ class MaskRCNN(object):
                 hdf5_format.load_weights_from_hdf5_group(f, layers)
 
         # Update the log directory
-        if self.save_logs:
+        if save_logs:
             self.set_log_dir(filepath)
 
     def get_imagenet_weights(self):
