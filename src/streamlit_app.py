@@ -50,8 +50,8 @@ PROJECT_ROOT = Path("..\\")
 MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
 
 # path to trained weights file
-#COCO_MODEL_PATH = "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5" #"mask_rcnn_coco.h5" # local
-COCO_MODEL_PATH ="mask_rcnn_coco.h5" # local
+COCO_MODEL_PATH = "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5" #"mask_rcnn_coco.h5" # local
+#COCO_MODEL_PATH ="mask_rcnn_coco.h5" # local
 
 # Preprocessed demo video
 DEMO_VIDEO = r"https://github.com/rejexx/Parkingspot_Vacancy/blob/main/src/streamlit_app/demo.avi?raw=true"
@@ -159,21 +159,38 @@ def get_file_content_as_string(path):
     return response.read().decode("utf-8")
 
 
+def download_weights(COCO_MODEL_PATH):
+    """Download file if it doesn't exist
+    returns true if file was found or downloaded"""
+    #This may take a minute if it's not already available.    
+    
+    # Download COCO trained weights from Releases if needed
+    # I'm trying to run this from the online version, expect things to be slower.
+    if Path(COCO_MODEL_PATH).is_file():
+        # file is good to go
+        return True
+    else:
+        try:
+            #download it
+            mrcnn.utils.download_trained_weights(COCO_MODEL_PATH)
+        except:
+            # if download failed, return unsuccessful
+            return False
+    return True
+
+
 def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
     """Gets a video clip, uses stored parkingspot boundaries OR makes new ones,
         counts how many spots exist in each frame, then displays a graph about it
         force_new_boxes: will force creation of new parking spot boundary boxes
         video_url: YouTube video URL"""
 
-    #This may take a minute if it's not already available.    
     dl_weights_warning = st.warning("Getting COCO trained weights file")
-    # Download COCO trained weights from Releases if needed
-    # I'm trying to run this from the online version, expect things to be slower.
-    # if not os.path.exists(COCO_MODEL_PATH):
-    #     dl_weights_warning.warning(
-    #         "Downloading COCO weights. This may take a while")
-    #     mrcnn.utils.download_trained_weights(COCO_MODEL_PATH)
+    # result = download_weights(COCO_MODEL_PATH)
 
+    if True == False:
+        st.Write("Could not get weights file")
+        return None
     dl_weights_warning.empty()
 
     # Give message while loading weights
