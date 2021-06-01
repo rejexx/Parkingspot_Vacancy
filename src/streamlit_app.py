@@ -204,7 +204,7 @@ def maskRCNN_model():
 
 
 
-def process_video_clip(video_url, image_placeholder, force_new_boxes=False
+def process_video_clip(video_url, image_placeholder, force_new_boxes=False,
                         free_space_frame_cut_off=0):
     """Gets a video clip, uses stored parkingspot boundaries OR makes new ones,
         counts how many spots exist in each frame, then displays a graph about it
