@@ -21,45 +21,15 @@ import requests
 import sys
 
 # Import mrcnn libraries
-
-######################################
-# MaskRCNN config and setup paths
-######################################
-# Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
-#ROOT_DIR = r'https://raw.githubusercontent.com/akTwelve/Mask_RCNN/master'
-#ROOT_DIR = 'aktwelve_Mask_RCNN'
-#assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist'
-#sys.path.append("aktwelve_Mask_RCNN")
-#sys.path.append(ROOT_DIR)
+# I am using Matterport mask R-CNN modified for tensor flow 2, see source here:
+# https://raw.githubusercontent.com/akTwelve/Mask_RCNN/master'
 
 import mrcnn.config
 import mrcnn.utils
 from mrcnn.model import MaskRCNN
 
-
-# Root directory of the project
-PROJECT_ROOT = Path(r"https://raw.githubusercontent.com/rejexx/Parkingspot_Vacancy/main/")
-
-# Directory to save logs and trained model (if doing your own training)
-MODEL_DIR = r"C:\springboard\Parkingspot_Vacancy\models"
-
-# Root directory of the project
-PROJECT_ROOT = Path("..\\")
-
-# Directory to save logs and trained model (if doing your own training)
-MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
-
-# path to trained weights file
-COCO_MODEL_PATH = r"https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5" #"mask_rcnn_coco.h5" # local
-#COCO_MODEL_PATH ="mask_rcnn_coco.h5" # local
-
 # Preprocessed demo video
 DEMO_VIDEO = r"https://github.com/rejexx/Parkingspot_Vacancy/blob/main/src/streamlit_app/demo.avi?raw=true"
-
-# Local path to output processed videos
-VIDEO_SAVE_DIR = os.path.join(PROJECT_ROOT, ".\\data\\processed")
-VIDEO_SAVE_FILE = os.path.join(VIDEO_SAVE_DIR, "FinalFile.avi")
-
 
 ######################################
 # Functions
@@ -95,7 +65,6 @@ def main():
         readme_text.empty()
         live_mode()
 
-
     return None
 
 def live_mode():
@@ -112,9 +81,10 @@ def live_mode():
             This works best if all parking spots are full in the first and last frames"""
     force_new_boxes = st.sidebar.checkbox("Remake parking spot map", help=msg)
 
+    msg2 = """"Larger value = less false positives (free spots), 
+        smaller value = more false negatives (counting filled spots as free)")"""
     free_space_frame_cut_off = st.sidebar.slider("Count spots if open for this many frames:",
-        0, 10, 0, key="spots",
-        help="Parking spaces will be conisdered open if they are free for this long to avoid transiant issues")
+        0, 10, 0, key="spots", help=msg2)
     if st.sidebar.button("Process video clip"):
         process_video_clip(video_url=video_url,
                             image_placeholder=image_placeholder,
@@ -133,6 +103,7 @@ def demo_mode(DEMO_VIDEO):
     frame_index = st.sidebar.slider(label="Show frame:", min_value=1, max_value=total_frames, value=1,
                             step=1, key="savedClipFrame", help="Choose frame to view")
 
+    # processed "vacancy for frame" dictionary, same as output on "live data" 
     file = r"https://github.com/rejexx/Parkingspot_Vacancy/blob/main/src/streamlit_app/demo_vacant_spots_data.pkl?raw=true"
     vacancy_per_frame = load_pickle(file)
     chart_placeholder = st.sidebar.empty()
@@ -152,7 +123,6 @@ def demo_mode(DEMO_VIDEO):
     st.write("Green boxes = available spot")
     st.markdown("This file was processed using Mask R-CNN to detect when cars overlapped with parking spots")
     st.write("Parking spaces were also identified using Mask R-CNN -  by detecting spots that had cars that didn't move")
-
 
 
 # Download a single file and make its content available as a string.

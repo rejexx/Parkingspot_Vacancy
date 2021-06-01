@@ -3,7 +3,7 @@
 import cv2  # open cvs, image processing
 import m3u8
 import pafy  # needs youtube_dl
-
+import time
 
 def get_frames_from_video(url, n_frames_per_segment=1):
     '''gets frames and processes them
@@ -87,13 +87,16 @@ def append_frames_to_file(frame_array, file_name="video.avi", nth_frames=1, fps=
     out.release()
     return None   
 
- 
 
 url = "https://youtu.be/DoUOrTJbIu4"
-save = "C:\\springboard\\Parkingspot_Vacancy\\data\\raw\\all_day.avi"
+save = "C:\\springboard\\Parkingspot_Vacancy\\data\\raw\\all_day2.avi"
+wait_time = 60 # seconds
+total_iterations = 60
 
-# get one frame 
-frame = get_frames_from_video(url)
-# append it to file
-append_frames_to_file(frame, file_name=save, fps=3)
-print("done")
+for i in range(total_iterations):
+    # get one frame (default)
+    frame = get_frames_from_video(url)
+    # append it to file
+    append_frames_to_file(frame, file_name=save, fps=3)
+    print(f"Got clip {i}/{total_iterations}")
+    time.sleep(wait_time)
