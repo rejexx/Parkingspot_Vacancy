@@ -176,7 +176,7 @@ def get_weights():
     #temporary location
     cloud_model_location = "1DR2t63XpubkmIhw7h75sfrqLo4DzJXul"
 
-    f_checkpoint = Path("model/mask_rcnn_coco.h5")
+    f_checkpoint = Path("coco_weights/mask_rcnn_coco.h5")
 
     if not f_checkpoint.exists():
         with st.spinner("Downloading model..."):
