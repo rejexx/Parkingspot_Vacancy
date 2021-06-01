@@ -193,7 +193,7 @@ def maskRCNN_model():
     model = MaskRCNN(mode="inference", model_dir="model", config=MaskRCNNConfig())
     
     # Load pre-trained model
-    model.load_weights(weights, by_name=True, save_logs=False)
+    model.load_weights(weights, by_name=True)
     model.keras_model._make_predict_function()
     
     return model
