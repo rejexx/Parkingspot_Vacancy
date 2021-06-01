@@ -112,10 +112,14 @@ def live_mode():
             This works best if all parking spots are full in the first and last frames"""
     force_new_boxes = st.sidebar.checkbox("Remake parking spot map", help=msg)
 
+    free_space_frame_cut_off = st.sidebar.slider("Count spots if open for this many frames:",
+        0, 10, 0, key="spots",
+        help="Parking spaces will be conisdered open if they are free for this long to avoid transiant issues")
     if st.sidebar.button("Process video clip"):
         process_video_clip(video_url=video_url,
                             image_placeholder=image_placeholder,
-                            force_new_boxes=force_new_boxes)
+                            force_new_boxes=force_new_boxes,
+                            free_space_frame_cut_off=free_space_frame_cut_off)
 
 
 def demo_mode(DEMO_VIDEO):
@@ -200,14 +204,15 @@ def maskRCNN_model():
 
 
 
-def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
+def process_video_clip(video_url, image_placeholder, force_new_boxes=False
+                        free_space_frame_cut_off=0):
     """Gets a video clip, uses stored parkingspot boundaries OR makes new ones,
         counts how many spots exist in each frame, then displays a graph about it
         force_new_boxes: will force creation of new parking spot boundary boxes
         video_url: YouTube video URL"""
 
     # Give message while loading weights
-    weight_warning = st.warning("Loading, sit tight a minute...")
+    weight_warning = st.warning("Loading model, sit tight a minute...")
 
     #Create model with saved weights
     model = maskRCNN_model()
@@ -239,9 +244,8 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False):
     vacancy_per_frame, image_array = countSpots(url=video_url,
                                                 parked_car_boxes=parked_car_boxes,
                                                 model=model,
-                                                utils=mrcnn.utils,
                                                 image_placeholder=image_placeholder,
-                                                free_space_frame_cut_off=2,
+                                                free_space_frame_cut_off=free_space_frame_cut_off,
                                                 skip_n_frames=10)
 
     count_spots_warning.empty()  # Clear the warning/loading message
@@ -503,7 +507,7 @@ def frame_count(video_path, manual=False):
     return frames
 
 
-def countSpots(url, parked_car_boxes, model, utils, image_placeholder,
+def countSpots(url, parked_car_boxes, model, image_placeholder,
                frames_to_process=True, free_space_frame_cut_off=5, show_video=True, skip_n_frames=10,
                n_frames_per_segment=100, n_segments=1):
     '''Counts how many spots are vacant at the end of the video 
