@@ -37,13 +37,13 @@ def get_frames_from_video(url, n_frames_per_segment=1):
         if success == False:
             break
 
-        frame_array.append(frame)
+        frame_array = frame
 
     capture.release()
 
     return frame_array
 
-def append_frames_to_file(frame_array, file_name="video.avi", nth_frames=1, fps=15):
+def append_frames_to_file(frame_array, file_name="video.mpeg", nth_frames=1, fps=15):
     '''writeFramesToFile(frame_array, fileName="video.avi", nthFrames=1, fps=15)
     Writes array of images to a video file of type .avi
     parameters:
@@ -65,6 +65,10 @@ def append_frames_to_file(frame_array, file_name="video.avi", nth_frames=1, fps=
 
     all_frames = []
     #Get old video and put in memory
+    # each time you do this the video gets worse
+    #   Like a bad photocopier.  Try to avoid re-writing many times
+    #   After 10+ writes, the video becomes terrible quality
+    #   I think this is due to bad compression
     while capture.isOpened():
         success, frame = capture.read()
         if not success:
@@ -74,9 +78,8 @@ def append_frames_to_file(frame_array, file_name="video.avi", nth_frames=1, fps=
 
     capture.release()
 
-    # This only appends the first frame of passed video
-    # but I'm only using one for now
-    all_frames.append(frame_array[0])
+    # Append all frames into one complete whole
+    [all_frames.append(frame) for frame in frame_array]
 
     # make video writer, write frames to file
     out = cv2.VideoWriter(file_name, cv2.VideoWriter_fourcc(
@@ -89,14 +92,20 @@ def append_frames_to_file(frame_array, file_name="video.avi", nth_frames=1, fps=
 
 
 url = "https://youtu.be/DoUOrTJbIu4"
-save = "C:\\springboard\\Parkingspot_Vacancy\\data\\raw\\all_day2.avi"
-wait_time = 60 # seconds
-total_iterations = 60
+save = "C:\\springboard\\Parkingspot_Vacancy\\data\\raw\\all_day4.avi"
+wait_time = 30 # seconds
+total_iterations = 200
+frame_array = []
 
 for i in range(total_iterations):
     # get one frame (default)
     frame = get_frames_from_video(url)
     # append it to file
-    append_frames_to_file(frame, file_name=save, fps=3)
-    print(f"Got clip {i}/{total_iterations}")
+    frame_array.append(frame)
+
+    print(f"Got clip {i+1}/{total_iterations}")
     time.sleep(wait_time)
+
+#openCVProcessing(frame_array)
+
+append_frames_to_file(frame_array, file_name=save, fps=3)
