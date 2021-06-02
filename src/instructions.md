@@ -2,17 +2,19 @@
 
 Use the left sidebar selector to choose what to do:
 
-1. See a demo with preprocessed data (runs quick, good place to start)
+1. Instructions (You are here 😉)
 
-2. Get live data from the YouTube stream and find parking spots
+2. See a demo with preprocessed data (runs quick, good place to start)
 
-3. View the source code (you can link directly to the gitHub repo via the upper right menu)
+3. Get live data from the YouTube stream and find parking spots
+
+4. View the source code (you can link directly to the gitHub repo via the upper right menu)
 
    
 
 ## Background
 
-### Problem
+### Problem 
 
 It's hard to find a parking spot in busy places (like Jackson Hole's town square).  It would be great to know how many spots were available at any given time, and keep some record  Not only would this help travelers, it could be used by city planners to identify under used parking or areas that need more parking.  
 
