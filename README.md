@@ -5,7 +5,7 @@ Finding available parking spots using a camera and machine learning.  This is my
 
 **Check out the streamlit app:** [Parking vacancy](https://share.streamlit.io/rejexx/parkingspot_vacancy/main/src/streamlit_app.py)
 
-I'm finishing up this project mid June and will add some nicer documentation by that point!  Here's some highlights:
+Here's some highlights:
 
 * Use Mask R-CNN to detect cars occupying spots
 * Deploy the app to streamlit 
