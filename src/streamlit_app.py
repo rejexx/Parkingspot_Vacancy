@@ -141,17 +141,19 @@ class MaskRCNNConfig(mrcnn.config.Config):
         NUM_CLASSES = 1 + 80  # COCO dataset has 80 classes + one background class
         DETECTION_MIN_CONFIDENCE = 0.6
 
-@st.cache(suppress_st_warning=True)
+#@st.cache(suppress_st_warning=True)  # I suspect this is causing the app to crash sometimes!
 def get_weights():     
     """Uses existing or downloads weight file from google drive"""
     save_dest = Path('coco_weights')
     save_dest.mkdir(exist_ok=True)
 
-    #temporary location
+    # gdrive location for now
     cloud_model_location = "1DR2t63XpubkmIhw7h75sfrqLo4DzJXul"
 
+    # where to place (and look for) the file
     f_checkpoint = Path("coco_weights/mask_rcnn_coco.h5")
 
+    # if the file wasn't downloaded, go download it.  May not need this with caching?
     if not f_checkpoint.exists():
         with st.spinner("Downloading model..."):
             from GD_download import download_file_from_google_drive
@@ -222,6 +224,10 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False,
 
     #Show chart of output frames, later add some animation/rewatching ability
     bar_chart_vacancy(vacancy_per_frame)
+
+    # replay the image you processed like the demo, options for downloading
+    #### stub
+    del image_array
 
     return None
 
@@ -328,6 +334,7 @@ def display_video(image_placeholder, video_file, show_chart=False, vacancy_per_f
 
     # Clean up everything when finished
     video_capture.release()
+
 
 # @st.cache(show_spinner=False)
 def display_single_frame(video_file, frame_index=0):
