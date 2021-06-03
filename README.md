@@ -1,7 +1,7 @@
 Parkingspot Vacancy
 ==============================
 
-Finding available parking spots using a camera and machine learning.  This is my final capstone project for Springboard Data Science bootcamp course. 
+Finding available parking spots in Jackson Hole town square using a camera and machine learning.  This is my final capstone project for Springboard Data Science bootcamp course. 
 
 **Check out the streamlit app:** [Parking vacancy](https://share.streamlit.io/rejexx/parkingspot_vacancy/main/src/streamlit_app.py)
 
@@ -21,7 +21,7 @@ _Jackson Hole town square with instance segmentation masks from Mask R-CNN_
 
 ### Problem 
 
-It's hard to find a parking spot in busy places (like Jackson Hole's town square).  It would be great to know how many spots were available at any given time, and keep some record.  Not only would this help travelers, it could be used by city planners to identify under used parking or areas that need more parking.  
+It's hard to find a parking spot in busy places (like Jackson Hole's town square).  It would be great to know how many spots were available at any given time, and keep some record.  Not only would this help travelers, it could be used by city planners to identify under used parking or areas that need more parking.  Everyone wants to get a selfie with the elk antler arches, why make them walk when parking is available?
 
 ### Solution
 
@@ -60,6 +60,7 @@ There's options for extra processing, like how many frames a spot needs to appea
 * More samples on model accuracy vs. human counting open/filled spots
 * Try [cnrpark's](http://cnrpark.it/) training images for open/vacant parking spots and see if it performs better than car detection with IOU
 * Try on other parking lots (such as Jackson Hole's airport)
+* Currently struggles with black cars or trucks, try re-training the model, or using higher resolution stream to resolve this.
 
 **App Features**
 * Ability to replay processed video
@@ -75,6 +76,13 @@ There's options for extra processing, like how many frames a spot needs to appea
 * Cazamias, Marek, 2016. Parking Space Classification using Convolutional Neural Networks.   [See paper](http://cs231n.stanford.edu/reports/2016/pdfs/280_Report.pdf).  They use a single image to count parking spots.
 * Acharya, Yan. Real-time image-based parking occupancy detection using deep learning [See paper](http://ceur-ws.org/Vol-2087/paper5.pdf)
 * [COCO dataset for training](http://cocodataset.org/)
+
+### Where is this camera from?
+
+![Elk antler arch](https://jhcr.s3.amazonaws.com/3323/arch-summer__large.jpg) 
+__The famous [elk antler arch](https://www.jacksonholewy.com/blog/elk-arches-town-square/) seen in the video__
+* Learn more about [Jackson Hole cameras](https://www.seejh.com/webcams/jackson-hole-featured-webcams/town-square-southwest/)
+* I got permission from Robert Strobel, seeJH.com CEO to use this camera for this purpose.  If you want to use my code on other cameras, keep in mind [YouTubes policy about face detection](https://www.youtube.com/t/terms). "You are not allowed to (...) collect or harvest any information that might identify a person (for example, usernames or faces), unless permitted by that person or allowed under section (3) above;"  I specifically used a low resolution (360p) version of this camera to make it hard to identify faces.
 
 Project Organization 
 ------------
