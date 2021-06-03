@@ -128,6 +128,6 @@ Project Organization
 
 
 --------
-(Not all folders are currently being used as described)
+(Not all folders are currently being used as described, leaving room for growth)
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
