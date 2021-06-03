@@ -24,6 +24,9 @@ Use webcam data to detect which spots have cars in them using machine learning! 
 
 ### Method
 
+![Jackson Hole townsquare with instance segmentation masks](https://github.com/rejexx/Parkingspot_Vacancy/raw/main/docs/townsquare_with_masks.png)
+_Jackson Hole town square with instance segmentation masks from Mask R-CNN_
+
 I used Mask R-CNN (Region-proposal Convolutional Neural Network) [Original Mask R-CNN paper](https://arxiv.org/abs/1703.06870) to process each video frame to identify cars and trucks.  If a car or truck's bounding box overlaps with a designated parking place, we'll call that spot occupied.  If not, the spot is vacant.  I used an updated version that works with TensorFlow 2 [Repo here] (https://github.com/akTwelve/Mask_RCNN).  To save time training, I used the [matterport model weights](https://github.com/matterport/Mask_RCNN), trained on the COCOs dataset.
 
 **Step 1:** Identify parking spots
