@@ -1,3 +1,0 @@
-[submodule "src/src/aktwelve_mask_rcnn"]
-	path = src/src/aktwelve_mask_rcnn
-	url = https://github.com/akTwelve/Mask_RCNN.git
