@@ -34,7 +34,7 @@ I used Mask R-CNN (Region-proposal Convolutional Neural Network) [Original Mask 
 - Method used here: I took a video clip during 'rush hour' when no spots were empty, and ran Mask R-CNN to detect vehicles.  The hope was to identify any cars that didn't move, and assume they were parked.  In other words, I compared the first frame against another frame a few minutes later. Any vehicle bounding boxes from the first frame that were still full in the later frame were considered to be parking.  Big shoutout to [Adam Geitgey's article] (https://medium.com/@ageitgey/snagging-parking-spaces-with-mask-r-cnn-and-python-955f2231c400) for this idea.
 - Other potential methods
   -  training a specialized neural network to identify empty (or full) spaces. See [cnrpark](http://cnrpark.it/)
-  -  Looking at painted lines (Jackson Hole's town square's prime spots are parallel parking that don't have any lines). See  (Dwivedi's article)[https://towardsdatascience.com/find-where-to-park-in-real-time-using-opencv-and-tensorflow-4307a4c3da03]
+  -  Looking at painted lines (Jackson Hole's town square's prime spots are parallel parking that don't have any lines). See  [Dwivedi's article](https://towardsdatascience.com/find-where-to-park-in-real-time-using-opencv-and-tensorflow-4307a4c3da03)
   - Have somebody draw boxes manually, or [map it with a drone] (https://medium.com/geoai/parking-lot-vehicle-detection-using-deep-learning-49597917bc4a)
   - 
 

@@ -75,21 +75,29 @@ def live_mode():
     # Jackson hole town square, live stream
     video_url = "https://youtu.be/DoUOrTJbIu4"
 
+    # Description
+    st.sidebar.write("Set options for processing video, then process a clip.")
+
     # Check for spots on temp file
     msg = """If selected, the algorithm will try to identify parking spots
             based on location of cars that don't move in the video clip.
             This works best if all parking spots are full in the first and last frames"""
     force_new_boxes = st.sidebar.checkbox("Remake parking spot map", help=msg)
 
-    msg2 = """"Larger value = less false positives (free spots), 
-        smaller value = more false negatives (counting filled spots as free)")"""
+    msg2 = """Larger value = less false positives (free spots), 
+        smaller value = more false negatives (counting filled spots as free)
+        0 means instantly count spots as free, 1 means they need to stay open for > 1 frame first"""
     free_space_frame_cut_off = st.sidebar.slider("Count spots if open for this many frames:",
         0, 10, 0, key="spots", help=msg2)
+    n_segments = st.sidebar.slider("How many frames should this video be:",
+        100, 700, 300, step=100, key="spots", help="It comes in 7 segments, 100 frames each")
+    n_segments = int(n_segments/100)
     if st.sidebar.button("Process video clip"):
         process_video_clip(video_url=video_url,
                             image_placeholder=image_placeholder,
                             force_new_boxes=force_new_boxes,
-                            free_space_frame_cut_off=free_space_frame_cut_off)
+                            free_space_frame_cut_off=free_space_frame_cut_off,
+                            n_segments=n_segments)
 
 
 def demo_mode(DEMO_VIDEO):
@@ -103,16 +111,27 @@ def demo_mode(DEMO_VIDEO):
     frame_index = st.sidebar.slider(label="Show frame:", min_value=1, max_value=total_frames, value=1,
                             step=1, key="savedClipFrame", help="Choose frame to view")
 
+    msg = """Smooths out the data to remove transient events and mistakes with an average rolling window. Your setting the
+            window size (in frames). A smaller value honors the data, larger numbers removes more noise"""
+    window_size = st.sidebar.slider(label="Smoothing, number of frames to average:", min_value=1, max_value=20, value=5,
+                            step=1, key="rollingAverageSlider", help=msg)
+
     # processed "vacancy for frame" dictionary, same as output on "live data" 
     file = r"https://github.com/rejexx/Parkingspot_Vacancy/blob/main/src/streamlit_app/demo_vacant_spots_data.pkl?raw=true"
     vacancy_per_frame = load_pickle(file)
-    chart_placeholder = st.sidebar.empty()
+    chart_placeholder = st.empty()
 
     #Show play video button and do actions according to user input
+    vacancy_per_frame_df = pd.DataFrame(
+                            vacancy_per_frame, index=["Available spots"]).T
+    vacancy_per_frame_df.index.name = "Frame number"
+    vacancy_per_frame_df = vacancy_per_frame_df.rolling(window_size).mean().round()
+
     if st.sidebar.button("Play video"):
-        display_video(image_placeholder, DEMO_VIDEO, show_chart = chart_placeholder, vacancy_per_frame = vacancy_per_frame)
+        display_video(image_placeholder, DEMO_VIDEO, show_chart = chart_placeholder, vacancy_per_frame_df = vacancy_per_frame_df)
     else:
-        bar_chart_vacancy(vacancy_per_frame, frame_index, chart_placeholder)
+            
+        bar_chart_vacancy(vacancy_per_frame_df, frame_index, chart_placeholder)
 
         # Load the video file we want to display
         frame = display_single_frame(DEMO_VIDEO, frame_index-1)  # 0 indexed
@@ -177,7 +196,7 @@ def maskRCNN_model():
 
 
 def process_video_clip(video_url, image_placeholder, force_new_boxes=False,
-                        free_space_frame_cut_off=0):
+                        free_space_frame_cut_off=0, n_segments=1):
     """Gets a video clip, uses stored parkingspot boundaries OR makes new ones,
         counts how many spots exist in each frame, then displays a graph about it
         force_new_boxes: will force creation of new parking spot boundary boxes
@@ -218,28 +237,33 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False,
                                                 model=model,
                                                 image_placeholder=image_placeholder,
                                                 free_space_frame_cut_off=free_space_frame_cut_off,
-                                                skip_n_frames=10)
+                                                skip_n_frames=10,
+                                                n_segments=n_segments)
 
     count_spots_warning.empty()  # Clear the warning/loading message
 
     #Show chart of output frames, later add some animation/rewatching ability
-    bar_chart_vacancy(vacancy_per_frame)
+    vacancy_per_frame_df = pd.DataFrame(
+                            vacancy_per_frame, index=["Available spots"]).T
+    vacancy_per_frame_df.index.name = "Frame number"
+    chart_placeholder = st.empty()
+    bar_chart_vacancy(vacancy_per_frame_df, chart_placeholder=chart_placeholder) # Needs df as input
 
     # replay the image you processed like the demo, options for downloading
-    #### stub
-    del image_array
+    # if st.button("Play processed live video"):
+    #     display_video(image_placeholder, image_array, show_chart = chart_placeholder,
+    #                  vacancy_per_frame_df = vacancy_per_frame_df)
 
     return None
 
 
-def bar_chart_vacancy(vacancy_per_frame, frame_index=False, chart_placeholder = None):
+def bar_chart_vacancy(vacancy_per_frame_df, frame_index=False, chart_placeholder = None):
     """Show a bar chart of vacancy per frame, with a line at 
     frame index position (if argument included)
+    vacancy_per_frame_df: pandas dataframe with two columns, frames: count of spots
+    frame_index: False = no line, a number will display line on chart at that frame
     chart_placeholder: st. empty object for where chart should appear"""
 
-    vacancy_per_frame_df = pd.DataFrame(
-                            vacancy_per_frame, index=["Available spots"]).T
-    vacancy_per_frame_df.index.name = "Frame number"
     # Altair charts can't read index, so move it to a column:
     vacancy_per_frame_df = vacancy_per_frame_df.reset_index()
 
@@ -308,7 +332,7 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
     return parked_car_boxes
 
 
-def display_video(image_placeholder, video_file, show_chart=False, vacancy_per_frame=None):
+def display_video(image_placeholder, video_file, show_chart=False, vacancy_per_frame_df=None):
     """Shows a video in given streamlit placeholder image
     image_placeholder: an st.empty streamlit object
     video_file: string path to video, entire video will be shown
@@ -327,7 +351,7 @@ def display_video(image_placeholder, video_file, show_chart=False, vacancy_per_f
 
         frame_index += 1
         if show_chart != False:
-            bar_chart_vacancy(vacancy_per_frame, frame_index, chart_placeholder=show_chart)
+            bar_chart_vacancy(vacancy_per_frame_df, frame_index, chart_placeholder=show_chart)
 
         image_placeholder.image(frame, channels="BGR")
         time.sleep(0.5)
@@ -534,7 +558,7 @@ def countSpots(url, parked_car_boxes, model, image_placeholder,
 
     # Loop over each frame of video
     #  Loop through all segments
-    for i in playlist.segments[0:7]:
+    for i in playlist.segments[0:n_segments]:
 
         capture = cv2.VideoCapture(i.uri)
 
