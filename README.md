@@ -14,6 +14,9 @@ Here's some highlights:
     * picture/video of parking lot when it's 100% full (to identify spots)
     * Youtube URL to get a new clip from
 
+![Jackson Hole townsquare with instance segmentation masks](https://github.com/rejexx/Parkingspot_Vacancy/raw/main/docs/townsquare_with_masks.png)
+_Jackson Hole town square with instance segmentation masks from Mask R-CNN_
+
 ## Background
 
 ### Problem 
