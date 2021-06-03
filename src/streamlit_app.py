@@ -141,7 +141,7 @@ class MaskRCNNConfig(mrcnn.config.Config):
         NUM_CLASSES = 1 + 80  # COCO dataset has 80 classes + one background class
         DETECTION_MIN_CONFIDENCE = 0.6
 
-#@st.cache(suppress_st_warning=True)  # I suspect this is causing the app to crash sometimes!
+@st.cache(suppress_st_warning=True)
 def get_weights():     
     """Uses existing or downloads weight file from google drive"""
     save_dest = Path('coco_weights')
@@ -184,7 +184,7 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False,
         video_url: YouTube video URL"""
 
     # Give message while loading weights
-    weight_warning = st.warning("Loading model, sit tight a minute...")
+    weight_warning = st.warning("Loading model, might take a few minutes, hold on...")
 
     #Create model with saved weights
     model = maskRCNN_model()
