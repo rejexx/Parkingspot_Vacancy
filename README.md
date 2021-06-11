@@ -27,13 +27,15 @@ It's hard to find a parking spot in busy places (like Jackson Hole's town square
 
 Use webcam data to detect which spots have cars in them using machine learning!  If google can recognize faces in photographs, why not recognize if a parking spot has a car in it or not?
 
+### Outcomes
+
 ![Images of parking lot with boxes](https://github.com/rejexx/Parkingspot_Vacancy/raw/main/reports/figures/sample_frame161_boxes.jpeg)
 
-![Graph of parking data](https://github.com/rejexx/Parkingspot_Vacancy/raw/main/reports/figures/graph_frame161.png)
+![Graph of parking data](https://github.com/rejexx/Parkingspot_Vacancy/raw/main/reports/figures/graph_frame161.png) _Sample of processed data, Frame 161, showing red occupied spots and green vacant spots. The number indicates how much of the spot is occupied by a car (0 = not occupied, 1= completely filled)_
 
-_Sample of processed data, Frame 161, showing red occupied spots and green vacant spots. The number indicates how much of the spot is occupied by a car (0 = not occupied, 1= completely filled)_
 
-### Outcomes
+
+To measure accuracy, I took every 10th frame of the 175 demo video clip (which covers both night and day) and counted parking spaces.  Considering myself an expert at finding available parking spaces, I used the human count as "Truth" to compute the following confusion matrix and derived metrics.
 
 | Accuracy             | 0.89 |
 | -------------------- | ---- |
@@ -42,13 +44,11 @@ _Sample of processed data, Frame 161, showing red occupied spots and green vacan
 | Sensitivity (recall) | 0.15 |
 | Specificity          | 0.87 |
 
-To measure accuracy, I took every 10th frame of the 175 demo video clip (which covers both night and day) and counted parking spaces.  Considering myself an expert at finding available parking spaces, I used the human count as "Truth" to compute the following confusion matrix and derived metrics.
-
-<img src="https://github.com/rejexx/Parkingspot_Vacancy/raw/main/reports/figures/confusion_matrix.png" alt="Confusion matrix  table" style="zoom:67%;" />
+<img src="https://github.com/rejexx/Parkingspot_Vacancy/raw/main/reports/figures/confusion_matrix.png" alt="Confusion matrix  table" style="zoom:70%;" />
 
 Take note - this model gives zero false negatives.  This means that whenever a parking spot was marked as 'taken' it was always correct!  The number of false positives indicates that the model often predicts spots as 'available' when they are not.  I saw three common reasons for misclassification.
 
-Common misclassification cause and how to fix them:
+Common misclassification causes and how to fix them:
 
 - Parking spots that are very few pixels (in the back) were frequently misclassified.  Use higher resolution or ignore those spots.  This could bring accuracy as high as 0.96 (!).
 - Black or white cars were often misclassified.  Higher resolution, or tuning the model would probably help.
