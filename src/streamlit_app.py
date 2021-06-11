@@ -46,7 +46,7 @@ def main():
     readme_text = st.markdown(get_file_content_as_string("instructions.md"))
 
      # Once we have the dependencies, add a selector for the app mode on the sidebar.
-    st.sidebar.title("What to do")
+    st.sidebar.title("Settings")
     app_mode = st.sidebar.selectbox("Choose the app mode",
         ["Show instructions", "Preprocessed demo data", "Live data", "Show the source code"])
     if app_mode == "Show instructions":
@@ -141,7 +141,7 @@ def demo_mode(DEMO_VIDEO):
     st.write("Red boxes = occupied spot")
     st.write("Green boxes = available spot")
     st.markdown("This file was processed using Mask R-CNN to detect when cars overlapped with parking spots")
-    st.write("Parking spaces were also identified using Mask R-CNN -  by detecting spots that had cars that didn't move")
+    st.write("Parking spaces were also identified using Mask R-CNN -  by detecting cars that didn't move between frames in training video")
 
 
 # Download a single file and make its content available as a string.
