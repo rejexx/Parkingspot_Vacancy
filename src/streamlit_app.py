@@ -80,9 +80,11 @@ def live_mode():
     st.sidebar.write("Set options for processing video, then process a clip.")
 
     # Check for spots on temp file
-    msg = """If selected, the algorithm will try to identify parking spots
+    msg = """Run this if the parking spots boxes don't appear over parking spots (misalgined).
+            If selected, the algorithm will try to identify parking spots
             based on location of cars that don't move in the video clip.
-            This works best if all parking spots are full in the first and last frames"""
+            This works best if all parking spots are full in the first and last frames. 
+            The camera shifts around occasionally, making this necessary from time-to-time."""
     force_new_boxes = st.sidebar.checkbox("Remake parking spot map", help=msg)
 
     msg2 = """Larger value = less false positives (free spots), 
