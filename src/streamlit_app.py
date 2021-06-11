@@ -40,7 +40,8 @@ def main():
     ######################################
     # Streamlit
     ######################################
-    st.title("Parking Spot Finder")
+    st.title("Spot Or Not?")
+    st.write("Parking Spot Vacancy with Machine Learning")
 
     # Render the readme as markdown using st.markdown as default
     readme_text = st.markdown(get_file_content_as_string("instructions.md"))
