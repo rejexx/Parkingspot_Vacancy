@@ -111,8 +111,8 @@ def demo_mode(DEMO_VIDEO):
     frame_index = st.sidebar.slider(label="Show frame:", min_value=1, max_value=total_frames, value=1,
                             step=1, key="savedClipFrame", help="Choose frame to view")
 
-    msg = """Smooths out the data to remove transient events and mistakes with an average rolling window. Your setting the
-            window size (in frames). A smaller value honors the data, larger numbers removes more noise"""
+    msg = """Smooths out the data to remove transient events and mistakes with an average rolling window. This is the
+            window size (in frames). Smaller values honor the data more, larger numbers removes more noise"""
     window_size = st.sidebar.slider(label="Smoothing, number of frames to average:", min_value=1, max_value=20, value=5,
                             step=1, key="rollingAverageSlider", help=msg)
 
