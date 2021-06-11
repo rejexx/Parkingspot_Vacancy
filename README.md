@@ -5,6 +5,8 @@ Finding available parking spots in Jackson Hole town square using a camera and m
 
 **Check out the streamlit app:** [Parking vacancy](https://share.streamlit.io/rejexx/parkingspot_vacancy/main/src/streamlit_app.py)
 
+See final report: [Spot or Not Final report](https://github.com/rejexx/Parkingspot_Vacancy/raw/main/reports/Final%20Report%20Spot%20or%20Not.pdf)
+
 Here's some highlights:
 
 * Use Mask R-CNN to detect cars occupying spots
@@ -14,7 +16,7 @@ Here's some highlights:
     * Picture/video of parking lot when it's 100% full (to identify spots)
     * Youtube URL pull the stream from
 
-![Jackson Hole townsquare with instance segmentation masks](https://github.com/rejexx/Parkingspot_Vacancy/raw/main/docs/townsquare_with_masks.png)
+![Jackson Hole townsquare with instance segmentation masks](https://github.com/rejexx/Parkingspot_Vacancy/raw/main/reports/figures/townsquare_with_masks.png)
 _Jackson Hole town square with instance segmentation masks from Mask R-CNN. labeled on each detected instance are the classification (person, car) and confidence of classification (between zero and one)__
 
 ## Background
@@ -65,7 +67,7 @@ Data on how full a parking lot is can also be used for:
 
 ### Method
 
-I used Mask R-CNN (Region-proposal Convolutional Neural Network) [Original Mask R-CNN paper by facebook research](https://arxiv.org/abs/1703.06870) to process each video frame to identify cars and trucks.  If a car or truck's bounding box overlaps with a designated parking place, that spot is considered occupied.  If not, the spot is vacant.  I used an updated version that works with TensorFlow 2 [Repo here](https://github.com/akTwelve/Mask_RCNN).  To save time training, I used the [matterport model weights](https://github.com/matterport/Mask_RCNN), trained on the COCOs dataset.
+I used Mask R-CNN (Region-proposal Convolutional Neural Network) [Original Mask R-CNN paper by facebook research](https://arxiv.org/abs/1703.06870) to process each video frame to identify cars and trucks.  If a car or truck's bounding box overlaps with a designated parking place, that spot is considered occupied.  If not, the spot is vacant.  I used an updated version that works with TensorFlow 2 [Repo here](https://github.com/akTwelve/Mask_RCNN).  To save time training, I used the [Matterport model weights](https://github.com/matterport/Mask_RCNN), trained on the COCOs dataset.
 
 **Step 1:** Identify parking spots
 

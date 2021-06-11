@@ -10,9 +10,11 @@ Use the left sidebar selector to choose what to do:
 
 4. View the source code (you can link directly to the gitHub repo via the upper right menu)
 
-   
+
+**See final report**: [Spot or Not? Final report pdf](https://github.com/rejexx/Parkingspot_Vacancy/raw/main/reports/Final%20Report%20Spot%20or%20Not.pdf)
 
 ## Background
+
 
 ### Problem 
 
