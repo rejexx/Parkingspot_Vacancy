@@ -92,15 +92,17 @@ def live_mode():
         0 means instantly count spots as free, 1 means they need to stay open for > 1 frame first"""
     free_space_frame_cut_off = st.sidebar.slider("Count spots if open for this many frames:",
         0, 10, 0, key="spots", help=msg2)
+    n_frames=60
     n_segments = st.sidebar.slider("How many frames should this video be:",
-        100, 700, 300, step=100, key="spots", help="It comes in 7 segments, 100 frames each")
-    n_segments = int(n_segments/100)
+        n_frames, n_frames*7, n_frames, step=n_frames, key="spots", help="It comes in 7 segments, 100 frames each")
+    n_segments = int(n_segments/n_frames)
     if st.sidebar.button("Process video clip"):
         process_video_clip(video_url=video_url,
                             image_placeholder=image_placeholder,
                             force_new_boxes=force_new_boxes,
                             free_space_frame_cut_off=free_space_frame_cut_off,
-                            n_segments=n_segments)
+                            n_segments=n_segments,
+                            n_frames=n_frames)
 
 
 def demo_mode(DEMO_VIDEO):
@@ -199,7 +201,7 @@ def maskRCNN_model():
 
 
 def process_video_clip(video_url, image_placeholder, force_new_boxes=False,
-                        free_space_frame_cut_off=0, n_segments=1):
+                        free_space_frame_cut_off=0, n_segments=1, n_frames=100):
     """Gets a video clip, uses stored parkingspot boundaries OR makes new ones,
         counts how many spots exist in each frame, then displays a graph about it
         force_new_boxes: will force creation of new parking spot boundary boxes
@@ -241,7 +243,8 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False,
                                                 image_placeholder=image_placeholder,
                                                 free_space_frame_cut_off=free_space_frame_cut_off,
                                                 skip_n_frames=10,
-                                                n_segments=n_segments)
+                                                n_segments=n_segments,
+                                                n_frames_per_segment=n_frames)
 
     count_spots_warning.empty()  # Clear the warning/loading message
 
