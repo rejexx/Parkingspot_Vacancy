@@ -37,18 +37,18 @@ Use webcam data to detect which spots have cars in them using machine learning! 
 
 
 
-To measure accuracy, I took every 10th frame of the 175 demo video clip (which covers both night and day) and counted parking spaces.  Considering myself an expert at finding available parking spaces, I used the human count as "Truth" to compute the following confusion matrix and derived metrics.
+To measure this method, I took every 10th frame of the 175 demo video clip (which covers both night and day) and counted parking spaces.  Considering myself an expert at finding available parking spaces, I used the human count as "Truth" to compute the following confusion matrix and derived metrics.  Note: I am NOT looking at metrics for Mask R-CNN, I am looking at how well I'm able to identify if a spot is empty (true positive) or full (true negative).
 
-| Accuracy             | 0.89 |
+| Metric               |      |
 | -------------------- | ---- |
 | Misclassification    | 0.11 |
-| Precision            | 0.57 |
+| Mean Avg Precision   | 0.57 |
 | Sensitivity (recall) | 0.15 |
 | Specificity          | 0.87 |
 
 <img src="https://github.com/rejexx/Parkingspot_Vacancy/raw/main/reports/figures/confusion_matrix.png" alt="Confusion matrix  table" style="zoom:70%;" />
 
-Take note - this model gives zero false negatives.  This means that whenever a parking spot was marked as 'taken' it was always correct!  The number of false positives indicates that the model often predicts spots as 'available' when they are not.  I saw three common reasons for misclassification.
+This model gives zero false negatives, hence the very good specificity.  This means that whenever a parking spot was marked as 'taken' it was always correct!  The number of false positives indicates that the model often predicts spots as 'available' when they are not (indicated by mean average precision).  I saw three common reasons for misclassification.
 
 Common misclassification causes and how to fix them:
 
