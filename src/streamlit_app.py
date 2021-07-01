@@ -85,13 +85,14 @@ def live_mode():
             based on location of cars that don't move in the video clip.
             This works best if all parking spots are full in the first and last frames. 
             The camera shifts around occasionally, making this necessary from time-to-time."""
-    #force_new_boxes = st.sidebar.checkbox("Remake parking spot map", help=msg)
-    force_new_boxes = False
+    force_new_boxes = st.sidebar.checkbox("Remake parking spot map", help=msg)
+    #force_new_boxes = False
     msg2 = """Larger value = less false positives (free spots), 
         smaller value = more false negatives (counting filled spots as free)
         0 means instantly count spots as free, 1 means they need to stay open for > 1 frame first"""
-    free_space_frame_cut_off = st.sidebar.slider("Count spots if open for this many frames:",
-        0, 10, 0, key="spots", help=msg2)
+    #free_space_frame_cut_off = st.sidebar.slider("Count spots if open for this many frames:",
+    #    0, 10, 0, key="spots", help=msg2)
+    free_space_frame_cut_off = 0
     n_frames=60
     n_segments = st.sidebar.slider("How many frames should this video be:",
         n_frames, n_frames*7, n_frames, step=n_frames, key="spots", help="It comes in 7 segments, 100 frames each")
