@@ -88,7 +88,7 @@ def camera_view():
     
     n_frames=60
     n_segments = st.sidebar.slider("How many frames should this video be:",
-        n_frames, n_frames*7, n_frames, step=n_frames, key="spots", help="It comes in 7 segments, 100 frames each")
+        n_frames, n_frames*6, n_frames, step=n_frames, key="spots", help="It comes in 7 segments, 100 frames each")
     n_segments = int(n_segments/n_frames)
     if st.sidebar.button("watch video clip"):
         watch_video(video_url=video_url,
@@ -299,8 +299,8 @@ def watch_video(video_url, image_placeholder, n_segments=1, n_frames=100, n_fram
         video_url: YouTube video URL"""
 
 
-    skip_n_frames=1
-    video_warning = st.warning("Getting a clip from youTube...")
+    skip_n_frames=3
+    video_warning = st.warning("showing a clip from youTube...")
 
     # Use pafy to get the 360p url
     url=video_url
@@ -350,7 +350,7 @@ def watch_video(video_url, image_placeholder, n_segments=1, n_frames=100, n_fram
                 # Run the image through the Mask R-CNN model to get results.
 
                 image_placeholder.image(frame, channels="BGR")
-                time.sleep(0.01)
+                time.sleep(0.05)
 
                 # Append frame to outputvideo
                 frame_array.append(frame)
@@ -362,7 +362,7 @@ def watch_video(video_url, image_placeholder, n_segments=1, n_frames=100, n_fram
     # writeFramesToFile(frame_array=frame_array, fileName=video_save_file) #save the file
 
     # total_frames = display_video(image_placeholder, single_segment_url, frame_sleep=0.01)
-
+    video_warning = st.empty()
     st.write("Done with clip, frame length", frame_num)
     # replay the image you processed like the demo, options for downloading
     # if st.button("Play processed live video"):
