@@ -41,11 +41,6 @@ imageio==2.9.0
 imagesize==1.2.0
 imgaug==0.4.0
 importlib-metadata==4.0.1
-ipykernel==5.5.5
-ipyparallel==6.3.0
-ipython==7.23.1
-ipython-genutils==0.2.0
-ipywidgets==7.6.3
 iso-639==0.4.5
 iso3166==1.0.1
 iso8601==0.1.14
@@ -126,7 +121,7 @@ sphinxcontrib-htmlhelp==1.0.3
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
-streamlit==0.82.0
+streamlit==0.84.0
 tensorboard==2.5.0
 tensorboard-data-server==0.6.1
 tensorboard-plugin-wit==1.8.0
