@@ -1,3 +1,4 @@
 freeglut3-dev
 libgtk2.0-dev
-libgl1-mesa-glx
+sudo apt-get update -y
+sudo apt-get install -y libgl1-mesa-glx
