@@ -49,7 +49,7 @@ def main():
      # Once we have the dependencies, add a selector for the app mode on the sidebar.
     st.sidebar.title("Settings")
     app_mode = st.sidebar.selectbox("Choose the app mode",
-        ["Show instructions", "Preprocessed demo data", "Live data", "Show the source code"])
+        ["Show instructions", "Preprocessed demo data", "Live data", "Camera viewer","Show the source code"])
     if app_mode == "Show instructions":
         st.sidebar.success('Next, try selecting "Preprocessed demo data".')
     elif app_mode == "Show the source code":
@@ -65,9 +65,37 @@ def main():
         st.sidebar.markdown("___")
         readme_text.empty()
         live_mode()
+    elif app_mode == "Camera viewer":
+        # Add horizontal line to sidebar
+        st.sidebar.markdown("___")
+        readme_text.empty()
+        camera_view()
 
     return None
 
+def camera_view():
+    # streamlit placeholder for image/video
+    image_placeholder = st.empty()
+
+    # url for video
+    # Jackson hole town square, live stream
+    video_url = "https://youtu.be/DoUOrTJbIu4"
+
+    # Description
+    st.sidebar.write("Set options for processing video, then process a clip.")
+
+    # Check for spots on temp file
+    
+    n_frames=60
+    n_segments = st.sidebar.slider("How many frames should this video be:",
+        n_frames, n_frames*7, n_frames, step=n_frames, key="spots", help="It comes in 7 segments, 100 frames each")
+    n_segments = int(n_segments/n_frames)
+    if st.sidebar.button("watch video clip"):
+        watch_video(video_url=video_url,
+                            image_placeholder=image_placeholder,
+                            n_segments=n_segments,
+                            n_frames=n_frames)
+                            
 def live_mode():
     # streamlit placeholder for image/video
     image_placeholder = st.empty()
@@ -264,6 +292,86 @@ def process_video_clip(video_url, image_placeholder, force_new_boxes=False,
     return None
 
 
+def watch_video(video_url, image_placeholder, n_segments=1, n_frames=100, n_frames_per_segment=60):
+    """Gets a video clip, uses stored parkingspot boundaries OR makes new ones,
+        counts how many spots exist in each frame, then displays a graph about it
+        force_new_boxes: will force creation of new parking spot boundary boxes
+        video_url: YouTube video URL"""
+
+
+    skip_n_frames=1
+    video_warning = st.warning("Getting a clip from youTube...")
+
+    # Use pafy to get the 360p url
+    url=video_url
+    video = pafy.new(url)
+
+    # best = video.getbest(preftype="mp4")  #  Get best resolution stream available
+    medVid = video.streams[2]
+
+    #  load a list of current segments for live stream
+    playlist = m3u8.load(medVid.url)
+
+    # will hold all frames at the end
+    # can be memory intestive, so be careful here
+    frame_array = []
+
+    # Speed processing by skipping n frames, so we need to keep track
+    frame_num = 0
+
+    #  Clip to total size if key word used
+    if n_segments == "all":
+        n_segments = int(len(playlist.segments))
+
+    # Loop over each frame of video
+    #  Loop through all segments
+    for i in playlist.segments[0:n_segments]:
+
+        capture = cv2.VideoCapture(i.uri)
+
+        # go through every frame in segment
+        for i in range(n_frames_per_segment):
+
+            success, frame = capture.read()
+            if not success:
+                break
+
+            # Skip every nth frame to speed processing up
+            if (frame_num % skip_n_frames != 0):
+                frame_num += 1
+                pass
+            else:
+                frame_num += 1
+
+                # Convert the image from BGR color (which OpenCV uses) to RGB color
+                #rgb_image = frame[:, :, ::-1]
+
+                print(f"Processing frame: #{frame_num}")
+                # Run the image through the Mask R-CNN model to get results.
+
+                image_placeholder.image(frame, channels="BGR")
+                time.sleep(0.01)
+
+                # Append frame to outputvideo
+                frame_array.append(frame)
+
+              
+
+    # Clean up everything when finished
+    capture.release()  # free the video
+    # writeFramesToFile(frame_array=frame_array, fileName=video_save_file) #save the file
+
+    # total_frames = display_video(image_placeholder, single_segment_url, frame_sleep=0.01)
+
+    st.write("Done with clip, frame length", frame_num)
+    # replay the image you processed like the demo, options for downloading
+    # if st.button("Play processed live video"):
+    #     display_video(image_placeholder, image_array, show_chart = chart_placeholder,
+    #                  vacancy_per_frame_df = vacancy_per_frame_df)
+
+    return None
+
+
 def bar_chart_vacancy(vacancy_per_frame_df, frame_index=False, chart_placeholder = None):
     """Show a bar chart of vacancy per frame, with a line at 
     frame index position (if argument included)
@@ -339,7 +447,7 @@ def get_bounding_boxes(model, url, force_new_boxes=False):
     return parked_car_boxes
 
 
-def display_video(image_placeholder, video_file, show_chart=False, vacancy_per_frame_df=None):
+def display_video(image_placeholder, video_file, show_chart=False, vacancy_per_frame_df=None, frame_sleep=0.5):
     """Shows a video in given streamlit placeholder image
     image_placeholder: an st.empty streamlit object
     video_file: string path to video, entire video will be shown
@@ -361,10 +469,11 @@ def display_video(image_placeholder, video_file, show_chart=False, vacancy_per_f
             bar_chart_vacancy(vacancy_per_frame_df, frame_index, chart_placeholder=show_chart)
 
         image_placeholder.image(frame, channels="BGR")
-        time.sleep(0.5)
+        time.sleep(frame_sleep)
 
     # Clean up everything when finished
     video_capture.release()
+    return frame_index
 
 
 # @st.cache(show_spinner=False)
