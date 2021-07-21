@@ -123,7 +123,7 @@ def live_mode():
     free_space_frame_cut_off = 0
     n_frames=60
     n_segments = st.sidebar.slider("How many frames should this video be:",
-        n_frames, n_frames*7, n_frames, step=n_frames, key="spots", help="It comes in 7 segments, 100 frames each")
+        n_frames, n_frames*6, n_frames, step=n_frames, key="spots", help="It comes in 6 segments, 100 frames each")
     n_segments = int(n_segments/n_frames)
     if st.sidebar.button("Process video clip"):
         process_video_clip(video_url=video_url,
@@ -804,7 +804,7 @@ def countSpots(url, parked_car_boxes, model, image_placeholder,
                     time.sleep(0.01)
 
                 # Append frame to outputvideo
-                frame_array.append(frame)
+                #frame_array.append(frame)  # save memory by commenting this out
 
                 if (frames_to_process != True and frame_num > frames_to_process):
                     print(
